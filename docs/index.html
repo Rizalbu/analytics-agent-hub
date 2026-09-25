@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>analytics-agent-hub</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #ffffff; --surface: #fcfcfb; --border: #e3e1db;
+    --text: #0b0b0b; --muted: #52514e; --accent: #2a78d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { color-scheme: dark; --bg: #111110; --surface: #1a1a19; --border: #34332e;
+            --text: #ffffff; --muted: #c3c2b7; --accent: #3987e5; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 56px 20px 80px; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  .sub { color: var(--muted); margin: 0 0 28px; }
+  .card { display: block; background: var(--surface); border: 1px solid var(--border);
+          border-radius: 12px; padding: 18px 20px; margin-bottom: 12px;
+          text-decoration: none; color: inherit; }
+  .card:hover { border-color: var(--accent); }
+  .card h2 { font-size: 15px; margin: 0 0 4px; }
+  .card p { margin: 0; color: var(--muted); font-size: 13px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--muted);
+           border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; margin-bottom: 22px; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 28px; }
+</style>
+</head>
+<body>
+<main>
+  <span class="badge">status: kerangka awal</span>
+  <h1>analytics-agent-hub</h1>
+  <p class="sub">Multi-tenant agent hub untuk analytics growth — orchestrator fan-out,
+     analyst deterministik-first, SQL workspace, adapter channel.</p>
+
+  <a class="card" href="./BRIEF.md">
+    <h2>docs/BRIEF.md →</h2>
+    <p>Spesifikasi target: fitur yang diminta, sumber konsepnya, bug yang harus dibetulkan
+       lebih dulu, aturan kerja, dan definisi selesai. Baca ini dulu.</p>
+  </a>
+
+  <a class="card" href="./analytics-agent-hub/">
+    <h2>Demo statis →</h2>
+    <p>Halaman demo versi saat ini (synthetic data, tanpa backend). Belum memenuhi BRIEF.</p>
+  </a>
+
+  <a class="card" href="https://github.com/rizalmachine/analytics-agent-hub">
+    <h2>Kode & riwayat →</h2>
+    <p>Repo di GitHub. Implementasi awal ada di <code>analytics_agent_hub/</code>.</p>
+  </a>
+
+  <footer>Semua data sintetis · tidak ada data pelanggan nyata.</footer>
+</main>
+</body>
+</html>
