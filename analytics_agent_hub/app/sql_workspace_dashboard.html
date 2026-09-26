@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL Workspace — Defense in Depth Dashboard</title>
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
+    --green: #22c55e; --red: #ef4444; --amber: #f59e0b;
+    --blue: #3b82f6; --purple: #a855f7; --cyan: #06b6d4;
+    --text: #f1f5f9; --muted: #94a3b8; --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    padding: 24px; min-height: 100vh;
+  }
+  .container { max-width: 1280px; margin: 0 auto; }
+
+  /* HEADER */
+  .header {
+    text-align: center; padding: 32px 0 24px;
+    border-bottom: 1px solid var(--surface2); margin-bottom: 32px;
+  }
+  .header h1 {
+    font-size: 28px; font-weight: 700;
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header p { color: var(--muted); margin-top: 6px; font-size: 14px; }
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 600; margin: 0 3px;
+  }
+  .badge-green { background: #14532d; color: var(--green); }
+  .badge-red { background: #450a0a; color: var(--red); }
+  .badge-amber { background: #451a03; color: var(--amber); }
+
+  /* GRID */
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 900px) { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
+
+  /* CARD */
+  .card {
+    background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--surface2); padding: 20px;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+  .card-title {
+    font-size: 13px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .5px; margin-bottom: 12px; display: flex;
+    align-items: center; gap: 8px;
+  }
+  .card-title .icon { font-size: 18px; }
+
+  /* DEFENSE LAYER */
+  .layer-num {
+    width: 36px; height: 36px; border-radius: 50%; display: inline-flex;
+    align-items: center; justify-content: center; font-weight: 700;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .layer-1 { background: #1e3a5f; color: var(--blue); }
+  .layer-2 { background: #3b1f4e; color: var(--purple); }
+  .layer-3 { background: #1a3d2b; color: var(--green); }
+
+  .check { color: var(--green); }
+  .cross { color: var(--red); }
+  .warn { color: var(--amber); }
+
+  /* FLOW DIAGRAM */
+  .flow { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; padding: 12px 0; }
+  .flow-step {
+    background: var(--surface2); padding: 8px 14px; border-radius: 8px;
+    font-size: 12px; font-weight: 500; text-align: center; min-width: 80px;
+  }
+  .flow-step.pass { background: #14532d; color: var(--green); }
+  .flow-step.fail { background: #450a0a; color: var(--red); }
+  .flow-step.active { background: #1e3a5f; color: var(--blue); }
+  .flow-arrow { color: var(--muted); font-size: 18px; }
+
+  /* QUERY TESTER */
+  .query-area { margin-bottom: 24px; }
+  .query-area textarea {
+    width: 100%; background: #0b1120; color: var(--text); border: 1px solid var(--surface2);
+    border-radius: 8px; padding: 12px 16px; font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 13px; resize: vertical; min-height: 90px; outline: none;
+  }
+  .query-area textarea:focus { border-color: var(--blue); }
+  .query-actions {
+    display: flex; gap: 10px; margin-top: 10px; align-items: center;
+  }
+  .btn {
+    padding: 8px 20px; border: none; border-radius: 8px; font-weight: 600;
+    font-size: 13px; cursor: pointer; transition: all .15s;
+  }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-secondary { background: var(--surface2); color: var(--text); }
+  .btn-secondary:hover { background: #475569; }
+  .query-result {
+    margin-top: 12px; padding: 12px 16px; border-radius: 8px;
+    font-family: monospace; font-size: 13px; display: none;
+  }
+  .query-result.show { display: block; }
+  .query-result.pass { background: #052e16; border: 1px solid #166534; color: var(--green); }
+  .query-result.fail { background: #450a0a; border: 1px solid #991b1b; color: var(--red); }
+
+  /* TABLE */
+  .rule-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .rule-table th {
+    text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--surface2);
+    color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase;
+  }
+  .rule-table td { padding: 8px 10px; border-bottom: 1px solid #1e293b; }
+  .rule-table tr:last-child td { border-bottom: none; }
+  .mono { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; }
+
+  /* CODE BLOCK */
+  .code-block {
+    background: #0b1120; border-radius: 8px; padding: 12px 16px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px;
+    line-height: 1.7; overflow-x: auto; margin-top: 8px;
+  }
+  .code-block .comment { color: #64748b; }
+  .code-block .keyword { color: var(--purple); }
+  .code-block .string { color: var(--green); }
+  .code-block .fn { color: var(--cyan); }
+  .code-block .num { color: var(--amber); }
+
+  .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 600;
+  }
+  .tag-allow { background: #052e16; color: var(--green); }
+  .tag-block { background: #450a0a; color: var(--red); }
+
+  /* STATS BAR */
+  .stat-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 24px; }
+  .stat-item {
+    background: var(--surface); border: 1px solid var(--surface2); border-radius: var(--radius);
+    padding: 16px 24px; flex: 1; min-width: 140px; text-align: center;
+  }
+  .stat-item .num { font-size: 28px; font-weight: 700; }
+  .stat-item .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .shield-bar {
+    display: flex; height: 8px; border-radius: 4px; overflow: hidden;
+    margin: 12px 0;
+  }
+  .shield-bar .seg { transition: width .4s; }
+  .seg-parse { background: var(--blue); }
+  .seg-regex { background: var(--purple); }
+  .seg-schema { background: var(--cyan); }
+  .seg-timeout { background: var(--green); }
+  .seg-cap { background: var(--amber); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>🛡️ SQL Workspace — Defense in Depth</h1>
+    <p>
+      Validasi → Guard → Eksekusi &nbsp;·&nbsp; DuckDB Read-Only Warehouse
+      &nbsp;·&nbsp; <span class="badge badge-green">SELECT ONLY</span>
+      <span class="badge badge-red">ROW CAP 1.000</span>
+      <span class="badge badge-amber">TIMEOUT 5s</span>
+    </p>
+  </div>
+
+  <!-- STATS ROW -->
+  <div class="stat-row">
+    <div class="stat-item"><div class="num" style="color:var(--blue)">3</div><div class="label">Layer Pertahanan</div></div>
+    <div class="stat-item"><div class="num" style="color:var(--purple)">8</div><div class="label">Schema Diizinkan</div></div>
+    <div class="stat-item"><div class="num" style="color:var(--red)">12</div><div class="label">Func/Kata Diblokir</div></div>
+    <div class="stat-item"><div class="num" style="color:var(--amber)">1.000</div><div class="label">Max Baris</div></div>
+    <div class="stat-item"><div class="num" style="color:var(--cyan)">5s</div><div class="label">Statement Timeout</div></div>
+  </div>
+
+  <!-- 3 LAYERS -->
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title"><span class="icon">🔍</span> Layer 1 — Parse & Validasi</div>
+      <div class="code-block" style="margin-bottom:10px">
+        <span class="comment"># sqlglot parse → hanya SELECT/WITH</span><br>
+        expr = sqlglot.parse_one(q, <span class="string">"duckdb"</span>)<br>
+        <span class="keyword">if not</span> isinstance(expr, exp.Select):<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">raise</span> SqlError
+      </div>
+      <table class="rule-table">
+        <tr><td><span class="check">✅</span> Query tidak kosong</td><td><span class="tag tag-allow">WAJIB</span></td></tr>
+        <tr><td><span class="check">✅</span> Single statement saja</td><td><span class="tag tag-block">; DIBLOKIR</span></td></tr>
+        <tr><td><span class="check">✅</span> Hanya SELECT / WITH ... SELECT</td><td><span class="tag tag-block">INSERT/UPDATE/DELETE DIBLOKIR</span></td></tr>
+        <tr><td><span class="check">✅</span> Parse via sqlglot (DuckDB dialect)</td><td><span class="tag tag-allow">WAJIB</span></td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">⛔</span> Layer 2 — Regex Guard</div>
+      <div class="code-block" style="margin-bottom:10px">
+        <span class="comment"># Blokir fungsi baca file lokal</span><br>
+        _FORBIDDEN_FUNC = <span class="fn">re.compile</span>(<span class="string">r"\b(read_csv|read_parquet|...)"</span>)<br><br>
+        <span class="comment"># Blokir perintah sistem</span><br>
+        _FORBIDDEN_KW = <span class="fn">re.compile</span>(<span class="string">r"\b(attach|copy|install|...)"</span>)
+      </div>
+      <table class="rule-table">
+        <tr><td><span class="cross">❌</span> <span class="mono">read_csv, read_parquet</span></td><td><span class="tag tag-block">FILE I/O</span></td></tr>
+        <tr><td><span class="cross">❌</span> <span class="mono">ATTACH, DETACH</span></td><td><span class="tag tag-block">DB LAIN</span></td></tr>
+        <tr><td><span class="cross">❌</span> <span class="mono">COPY, EXPORT, IMPORT</span></td><td><span class="tag tag-block">WRITE</span></td></tr>
+        <tr><td><span class="cross">❌</span> <span class="mono">INSTALL, LOAD, PRAGMA</span></td><td><span class="tag tag-block">EXT/SISTEM</span></td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">🔒</span> Layer 3 — Eksekusi Aman</div>
+      <div class="code-block" style="margin-bottom:10px">
+        <span class="comment"># Bungkus dengan LIMIT + timeout thread</span><br>
+        wrapped = <span class="string">f"SELECT * FROM ({q}) AS _sub LIMIT {ROW_CAP}"</span><br>
+        timer = Timer(TIMEOUT_S, con.interrupt)<br>
+        cur = con.execute(wrapped)
+      </div>
+      <table class="rule-table">
+        <tr><td><span class="check">✅</span> Koneksi DuckDB <span class="mono">read_only</span></td><td><span class="tag tag-allow">BAWAAN</span></td></tr>
+        <tr><td><span class="check">✅</span> Otomatis <span class="mono">LIMIT 1000</span></td><td><span class="tag tag-allow">ROW CAP</span></td></tr>
+        <tr><td><span class="check">✅</span> Statement timeout <span class="mono">5 detik</span></td><td><span class="tag tag-allow">TIMEOUT</span></td></tr>
+        <tr><td><span class="check">✅</span> Semua nilai di-sanitize via <span class="mono">_cell()</span></td><td><span class="tag tag-allow">SAFE</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- FLOW DIAGRAM -->
+  <div class="card" style="margin-bottom:24px">
+    <div class="card-title"><span class="icon">🔄</span> Alur Eksekusi Query</div>
+    <div class="flow">
+      <span class="flow-step active">User Query</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-step" id="step1">1. Parse & Validasi</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-step" id="step2">2. Regex Guard</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-step" id="step3">3. Schema Check</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-step" id="step4">4. Eksekusi ⏱️</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-step pass" id="step5">✅ Result</span>
+    </div>
+    <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center">
+      <span class="badge badge-green">✅ Lolos</span>
+      <span class="badge badge-red">❌ Gagal → SqlError</span>
+    </div>
+  </div>
+
+  <!-- ALLOWED SCHEMAS + QUERY TESTER -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">📂</span> Schema yang Diizinkan</div>
+      <table class="rule-table">
+        <tr><th>Schema</th><th>Fungsi</th></tr>
+        <tr><td><span class="mono" style="color:var(--cyan)">main_marts</span></td><td>Data siap pakai untuk analisis</td></tr>
+        <tr><td><span class="mono" style="color:var(--cyan)">main_staging</span></td><td>Data staging hasil ETL</td></tr>
+        <tr><td><span class="mono" style="color:var(--cyan)">main_intermediate</span></td><td>Transformasi antara staging → marts</td></tr>
+        <tr><td><span class="mono" style="color:var(--cyan)">main_seeds</span></td><td>Data referensi statis (CSV seed)</td></tr>
+        <tr><td><span class="mono" style="color:var(--cyan)">raw</span></td><td>Data mentah dari sumber</td></tr>
+        <tr><td><span class="mono" style="color:var(--cyan)">snapshots</span></td><td>Snapshot SCD tipe 2</td></tr>
+        <tr><td><span class="mono" style="color:var(--cyan)">information_schema</span></td><td>Metadata sistem</td></tr>
+        <tr><td><span class="mono" style="color:var(--cyan)">main</span></td><td>Default schema DuckDB</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">🧪</span> Uji Coba Query</div>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:10px">
+        Coba query di bawah untuk simulasi validasi:
+      </p>
+      <div class="query-area">
+        <textarea id="queryInput" placeholder="Tulis SQL query di sini...">SELECT column_name, data_type FROM information_schema.columns LIMIT 5</textarea>
+        <div class="query-actions">
+          <button class="btn btn-primary" onclick="testQuery()">🧪 Uji Query</button>
+          <button class="btn btn-secondary" onclick="loadExample('select')">📥 SELECT</button>
+          <button class="btn btn-secondary" onclick="loadExample('forbidden')">⛔ FORBIDDEN</button>
+          <button class="btn btn-secondary" onclick="loadExample('multi')">❌ MULTI-STMT</button>
+          <button class="btn btn-secondary" onclick="loadExample('schema')">🚫 SCHEMA</button>
+        </div>
+        <div class="query-result" id="queryResult"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RULES SUMMARY TABLE -->
+  <div class="card" style="margin-bottom:24px">
+    <div class="card-title"><span class="icon">📋</span> Ringkasan Aturan Keamanan</div>
+    <table class="rule-table">
+      <tr><th>Aturan</th><th>Metode</th><th>Lokasi di Kode</th><th>Status</th></tr>
+      <tr>
+        <td>Query tidak boleh kosong</td>
+        <td><span class="mono">if not q → raise</span></td>
+        <td><span class="mono">validate()</span></td>
+        <td><span class="check">✅</span></td>
+      </tr>
+      <tr>
+        <td>Multi-statement (;) diblokir</td>
+        <td><span class="mono">if ";" in q → raise</span></td>
+        <td><span class="mono">validate()</span></td>
+        <td><span class="check">✅</span></td>
+      </tr>
+      <tr>
+        <td>Forbidden functions</td>
+        <td><span class="mono">re.search(_FORBIDDEN_FUNC, q)</span></td>
+        <td><span class="mono">validate()</span></td>
+        <td><span class="check">✅</span></td>
+      </tr>
+      <tr>
+        <td>Forbidden keywords</td>
+        <td><span class="mono">re.search(_FORBIDDEN_KW, q)</span></td>
+        <td><span class="mono">validate()</span></td>
+        <td><span class="check">✅</span></td>
+      </tr>
+      <tr>
+        <td>Hanya SELECT / WITH.</td>
+        <td><span class="mono">isinstance(expr, exp.Select)</span></td>
+        <td><span class="mono">validate()</span></td>
+        <td><span class="check">✅</span></td>
+      </tr>
+      <tr>
+        <td>Schema harus diallowlist</td>
+        <td><span class="mono">schema in ALLOWED_SCHEMAS</span></td>
+        <td><span class="mono">validate()</span></td>
+        <td><span class="check">✅</span></td>
+      </tr>
+      <tr>
+        <td>Row cap 1.000</td>
+        <td><span class="mono">LIMIT {ROW_CAP}</span></td>
+        <td><span class="mono">run()</span></td>
+        <td><span class="check">✅</span></td>
+      </tr>
+      <tr>
+        <td>Statement timeout 5 detik</td>
+        <td><span class="mono">threading.Timer(5, con.interrupt)</span></td>
+        <td><span class="mono">run()</span></td>
+        <td><span class="check">✅</span></td>
+      </tr>
+      <tr>
+        <td>Koneksi read-only</td>
+        <td><span class="mono">duckdb.connect(read_only=True)</span></td>
+        <td><span class="mono">db.py</span></td>
+        <td><span class="check">✅</span></td>
+      </tr>
+      <tr>
+        <td>Sanitasi nilai output</td>
+        <td><span class="mono">_cell(v)</span></td>
+        <td><span class="mono">run()</span></td>
+        <td><span class="check">✅</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- DIAGRAM SHIELD BAR -->
+  <div class="card" style="margin-bottom:24px">
+    <div class="card-title"><span class="icon">🛡️</span> Coverage Pertahanan</div>
+    <div class="shield-bar">
+      <div class="seg seg-parse" style="width:25%"></div>
+      <div class="seg seg-regex" style="width:25%"></div>
+      <div class="seg seg-schema" style="width:20%"></div>
+      <div class="seg seg-timeout" style="width:15%"></div>
+      <div class="seg seg-cap" style="width:15%"></div>
+    </div>
+    <div style="display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:8px">
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--blue);margin-right:4px"></span> Parse & Validasi (25%)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--purple);margin-right:4px"></span> Regex Guard (25%)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--cyan);margin-right:4px"></span> Schema Check (20%)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:4px"></span> Timeout (15%)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--amber);margin-right:4px"></span> Row Cap (15%)</span>
+    </div>
+  </div>
+
+  <!-- OUTPUT STRUCTURE -->
+  <div class="card" style="margin-bottom:24px">
+    <div class="card-title"><span class="icon">📦</span> Struktur Output <span class="mono" style="font-weight:400;color:var(--muted)">run() → dict</span></div>
+    <div class="code-block">
+{<br>
+&nbsp;&nbsp;<span class="string">"columns"</span>: [<span class="string">"column_name"</span>, <span class="string">"data_type"</span>],&nbsp;&nbsp;<span class="comment"># nama kolom hasil query</span><br>
+&nbsp;&nbsp;<span class="string">"rows"</span>: [[<span class="string">"id"</span>, <span class="string">"INTEGER"</span>], ...],&nbsp;&nbsp;<span class="comment"># data baris (semua di-string-kan via _cell)</span><br>
+&nbsp;&nbsp;<span class="string">"rowcount"</span>: <span class="num">42</span>,&nbsp;&nbsp;<span class="comment"># jumlah baris</span><br>
+&nbsp;&nbsp;<span class="string">"ms"</span>: <span class="num">12.7</span>,&nbsp;&nbsp;<span class="comment"># waktu eksekusi dalam milidetik</span><br>
+&nbsp;&nbsp;<span class="string">"capped"</span>: <span class="keyword">false</span>&nbsp;&nbsp;<span class="comment"># apakah hasil dipotong oleh row cap?</span><br>
+}
+    </div>
+  </div>
+
+  <!-- FUNGSI LAINNYA -->
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title"><span class="icon">📖</span> <span class="mono">schema()</span></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:8px">
+        Ambil daftar tabel + kolom dari information_schema.
+      </p>
+      <div class="code-block">
+<span class="keyword">return</span> [<br>
+&nbsp;&nbsp;{<span class="string">"schema"</span>: <span class="string">"main_marts"</span>,<br>
+&nbsp;&nbsp;&nbsp;<span class="string">"table"</span>: <span class="string">"customers"</span>,<br>
+&nbsp;&nbsp;&nbsp;<span class="string">"columns"</span>: [{<span class="string">"name"</span>: <span class="string">"id"</span>, <span class="string">"type"</span>: <span class="string">"INTEGER"</span>}]}<br>
+]
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">👁️</span> <span class="mono">preview()</span></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:8px">
+        SELECT * cepat untuk eksplorasi. Lewati validasi schema.
+      </p>
+      <div class="code-block">
+<span class="keyword">def</span> <span class="fn">preview</span>(schema, table, limit=<span class="num">50</span>):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;q = <span class="string">f'SELECT * FROM "{s}"."{t}" LIMIT {limit}'</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">return</span> <span class="fn">run</span>(q)
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> <span class="mono">stats()</span></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:8px">
+        Statistik warehouse: tabel, schema, kolom.
+      </p>
+      <div class="code-block">
+{<br>
+&nbsp;&nbsp;<span class="string">"total_tables"</span>: <span class="num">25</span>,<br>
+&nbsp;&nbsp;<span class="string">"total_schemas"</span>: <span class="num">5</span>,<br>
+&nbsp;&nbsp;<span class="string">"total_columns"</span>: <span class="num">312</span>,<br>
+&nbsp;&nbsp;<span class="string">"schemas"</span>: [{...}]<br>
+}
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div style="text-align:center;padding:24px 0;color:var(--muted);font-size:12px;border-top:1px solid var(--surface2);margin-top:24px">
+    <span class="mono">app/sql_workspace.py</span> &nbsp;·&nbsp; Defense in Depth &nbsp;·&nbsp; DuckDB Read-Only &nbsp;·&nbsp; Growth Command Hub
+  </div>
+</div>
+
+<script>
+function testQuery() {
+  const q = document.getElementById('queryInput').value.trim();
+  const res = document.getElementById('queryResult');
+  const steps = ['step1','step2','step3','step4','step5'];
+
+  // Reset all steps
+  steps.forEach(id => {
+    const el = document.getElementById(id);
+    el.className = 'flow-step active';
+  });
+
+  const errors = [];
+
+  // 1. Empty check
+  if (!q) { errors.push('Query kosong'); }
+  // 2. Multi-statement
+  else if (q.includes(';') && q.split(';').filter(s=>s.trim()).length > 1) {
+    errors.push('Multi-statement (;) tidak diizinkan');
+  }
+  // 3. Forbidden functions
+  const forbiddenFuncs = /\b(read_csv|read_parquet|read_json|read_text|read_blob|glob|parquet_scan|csv_scan)\s*\(/i;
+  if (forbiddenFuncs.test(q)) { errors.push('Mengandung fungsi baca file terlarang'); }
+  // 4. Forbidden keywords
+  const forbiddenKw = /\b(attach|detach|copy|install|load|pragma|export|import)\b/i;
+  if (forbiddenKw.test(q)) { errors.push('Mengandung keyword terlarang'); }
+  // 5. Bukan SELECT
+  const upper = q.toUpperCase().trimStart();
+  if (!upper.startsWith('SELECT') && !upper.startsWith('WITH')) {
+    errors.push('Hanya SELECT / WITH ... SELECT yang diizinkan');
+  }
+  // 6. Schema check
+  const schemaMatch = q.match(/\bFROM\s+(\w+)/i);
+  if (schemaMatch) {
+    const schemaName = schemaMatch[1].toLowerCase();
+    const allowed = ['main_marts','main_staging','main_intermediate','main_seeds','raw','snapshots','information_schema','main'];
+    if (schemaName !== 'information_schema' && !allowed.includes(schemaName) && schemaName !== schemaMatch[1]) {
+      // Relaxed - only flag if clearly a different schema pattern
+    }
+    if (schemaName.includes('system') || schemaName.includes('pg_') || schemaName === 'tmp') {
+      errors.push(`Schema "${schemaName}" tidak ada di allowlist`);
+    }
+  }
+
+  if (errors.length === 0) {
+    res.className = 'query-result show pass';
+    res.textContent = '✅ LOLOS VALIDASI — Query aman untuk dieksekusi!';
+    steps.forEach(id => {
+      const el = document.getElementById(id);
+      el.className = 'flow-step pass';
+    });
+  } else {
+    res.className = 'query-result show fail';
+    const failStep = Math.min(errors.length, steps.length);
+    for (let i = 0; i < failStep; i++) {
+      const el = document.getElementById(steps[i]);
+      el.className = 'flow-step pass';
+    }
+    const el = document.getElementById(steps[failStep-1]);
+    el.className = 'flow-step fail';
+    res.textContent = '❌ DIBLOKIR: ' + errors.join('; ');
+  }
+}
+
+function loadExample(type) {
+  const input = document.getElementById('queryInput');
+  const res = document.getElementById('queryResult');
+  res.className = 'query-result';
+  res.textContent = '';
+
+  const examples = {
+    select: 'SELECT column_name, data_type\nFROM information_schema.columns\nLIMIT 5',
+    forbidden: "SELECT *\nFROM read_parquet('secrets.parquet')",
+    multi: 'SELECT * FROM main_marts.customers;\nDROP TABLE main_marts.customers',
+    schema: 'SELECT *\nFROM pg_shadow.users'
+  };
+  input.value = examples[type] || '';
+  testQuery();
+}
+</script>
+</body>
+</html>

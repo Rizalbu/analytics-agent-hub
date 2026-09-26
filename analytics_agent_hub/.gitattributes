@@ -1,0 +1,6 @@
+# Normalize to LF for shell scripts
+start.sh text eol=lf
+*.sh text eol=lf
+
+# Everything else auto
+* text=auto

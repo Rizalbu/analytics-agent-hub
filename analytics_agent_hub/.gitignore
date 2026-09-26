@@ -1,0 +1,31 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Data — auto-generated
+data/sheets/
+data/sync.duckdb
+data/agent.duckdb
+data/studio_state.json
+data/warehouse/
+*.duckdb
+*.db
+
+# IDE / local tooling
+.agents/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
