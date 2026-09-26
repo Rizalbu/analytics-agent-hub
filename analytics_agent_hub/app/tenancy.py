@@ -36,7 +36,7 @@ def _save(orgs: dict[str, dict]) -> None:
     ORGS_PATH.write_text(json.dumps(orgs))
 
 
-def create_org(name: str) -> dict:
+def create_org(name: str, owner_username: str) -> dict:
     orgs = _load()
     org_id = secrets.token_hex(6)
     db_path = ORGS_DATA_DIR / org_id / "funnel.duckdb"
@@ -50,7 +50,7 @@ def create_org(name: str) -> dict:
     seed = int(org_id, 16) % (2**31)
     generate(str(db_path), seed=seed)
 
-    org = {"id": org_id, "name": name, "db_path": str(db_path)}
+    org = {"id": org_id, "name": name, "db_path": str(db_path), "members": [owner_username]}
     orgs[org_id] = org
     _save(orgs)
     return org
@@ -62,5 +62,24 @@ def get_org(org_id: str | None) -> dict | None:
     return _load().get(org_id)
 
 
-def list_orgs() -> list[dict]:
-    return [{"id": o["id"], "name": o["name"]} for o in _load().values()]
+def is_member(org_id: str, username: str | None) -> bool:
+    org = get_org(org_id)
+    return bool(org and username and username in org.get("members", []))
+
+
+def add_member(org_id: str, username: str) -> bool:
+    orgs = _load()
+    org = orgs.get(org_id)
+    if not org or username in org["members"]:
+        return False
+    org["members"].append(username)
+    _save(orgs)
+    return True
+
+
+def list_orgs_for(username: str) -> list[dict]:
+    return [
+        {"id": o["id"], "name": o["name"]}
+        for o in _load().values()
+        if username in o.get("members", [])
+    ]

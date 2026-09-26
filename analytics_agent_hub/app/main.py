@@ -55,20 +55,28 @@ async def access_log(request: Request, call_next):
     path = request.url.path
     
     # Auth gate for all /api routes except health and login/register themselves
+    username = None
     if path.startswith("/api") and path not in ("/api/health", "/api/auth/login", "/api/auth/register"):
         auth_header = request.headers.get("Authorization")
         token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else None
-        if not auth.username_for(token):
+        username = auth.username_for(token)
+        if not username:
             return JSONResponse({"error": "Unauthorized"}, status_code=401, headers={"WWW-Authenticate": "Bearer"})
+    request.state.username = username
 
     # Multi-tenant isolation: X-Org-Id routes this request's queries at that
     # org's own warehouse file instead of the shared demo one. No header =
     # unchanged single-tenant behavior (existing demo login, existing tests).
+    # Membership is checked here too - knowing an org id isn't enough, the
+    # caller has to actually be one of its members (closes the gap where any
+    # logged-in user could read any org's data just by guessing its id).
     org_id = request.headers.get("X-Org-Id")
     if org_id:
         org = tenancy.get_org(org_id)
         if not org:
             return JSONResponse({"error": "unknown org"}, status_code=404)
+        if not tenancy.is_member(org_id, username):
+            return JSONResponse({"error": "not a member of this org"}, status_code=403)
         db.set_db_path(org["db_path"])
 
     response = await call_next(request)
@@ -108,15 +116,29 @@ class OrgBody(BaseModel):
 
 
 @app.get("/api/orgs")
-def api_list_orgs():
-    return {"orgs": tenancy.list_orgs()}
+def api_list_orgs(request: Request):
+    # only orgs this user is actually a member of, not the whole registry
+    return {"orgs": tenancy.list_orgs_for(request.state.username)}
 
 
 @app.post("/api/orgs")
-def api_create_org(body: OrgBody):
+def api_create_org(body: OrgBody, request: Request):
     # takes ~1-2 min: spins up a full synthetic warehouse for this org alone
-    org = tenancy.create_org(body.name)
+    org = tenancy.create_org(body.name, owner_username=request.state.username)
     return {"id": org["id"], "name": org["name"]}
+
+
+class OrgMemberBody(BaseModel):
+    username: str
+
+
+@app.post("/api/orgs/{org_id}/members")
+def api_add_org_member(org_id: str, body: OrgMemberBody, request: Request):
+    if not tenancy.is_member(org_id, request.state.username):
+        return JSONResponse({"error": "not a member of this org"}, status_code=403)
+    if not tenancy.add_member(org_id, body.username):
+        return JSONResponse({"error": "already a member or org not found"}, status_code=400)
+    return {"ok": True}
 
 
 # ---- meta ---------------------------------------------------------------
