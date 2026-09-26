@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 
-from . import agents, analyst, auth, coordinator, funnel_detail, insights, llm, queries, quality, sql_workspace
+from . import agents, analyst, auth, coordinator, db, funnel_detail, insights, llm, queries, quality, sql_workspace, tenancy
 from .config import settings
 from .llm import polish_stream
 from .rate_limit import limiter
@@ -61,6 +61,16 @@ async def access_log(request: Request, call_next):
         if not auth.username_for(token):
             return JSONResponse({"error": "Unauthorized"}, status_code=401, headers={"WWW-Authenticate": "Bearer"})
 
+    # Multi-tenant isolation: X-Org-Id routes this request's queries at that
+    # org's own warehouse file instead of the shared demo one. No header =
+    # unchanged single-tenant behavior (existing demo login, existing tests).
+    org_id = request.headers.get("X-Org-Id")
+    if org_id:
+        org = tenancy.get_org(org_id)
+        if not org:
+            return JSONResponse({"error": "unknown org"}, status_code=404)
+        db.set_db_path(org["db_path"])
+
     response = await call_next(request)
     dt = (time.perf_counter() - t0) * 1000
     if path.startswith("/api"):
@@ -89,6 +99,24 @@ def api_register(body: LoginBody):
         return JSONResponse({"error": "username taken or invalid"}, status_code=400)
     token = auth.login(body.username, body.password)
     return {"token": token, "username": body.username}
+
+
+# ---- orgs (multi-tenant) ---------------------------------------------------
+
+class OrgBody(BaseModel):
+    name: str
+
+
+@app.get("/api/orgs")
+def api_list_orgs():
+    return {"orgs": tenancy.list_orgs()}
+
+
+@app.post("/api/orgs")
+def api_create_org(body: OrgBody):
+    # takes ~1-2 min: spins up a full synthetic warehouse for this org alone
+    org = tenancy.create_org(body.name)
+    return {"id": org["id"], "name": org["name"]}
 
 
 # ---- meta ---------------------------------------------------------------

@@ -59,16 +59,16 @@ def _lead_id() -> str:
     return f"L{uuid.uuid4().hex[:10].upper()}"
 
 
-def generate(db_path: str) -> None:
+def generate(db_path: str, seed: int = 42) -> None:
     p = Path(db_path)
     if p.exists():
         print(f"Warehouse exists at {db_path}, skipping bootstrap.")
         return
 
-    print(f"Generating full synthetic warehouse → {db_path} ...")
+    print(f"Generating full synthetic warehouse → {db_path} (seed={seed}) ...")
     p.parent.mkdir(parents=True, exist_ok=True)
     try:
-        _generate_inner(p)
+        _generate_inner(p, seed)
     except BaseException:
         import traceback
         traceback.print_exc()
@@ -76,7 +76,7 @@ def generate(db_path: str) -> None:
         raise
 
 
-def _generate_inner(p: Path) -> None:
+def _generate_inner(p: Path, seed: int = 42) -> None:
     con = duckdb.connect(str(p))
     try:
         con.execute("BEGIN TRANSACTION")
@@ -126,7 +126,7 @@ def _generate_inner(p: Path) -> None:
             )
 
         # ── target revenue per studio per month ─────────────────────
-        rng = random.Random(42)
+        rng = random.Random(seed)
         monthly_target: dict[str, int] = {}
         for sc, _, city, tier in STUDIOS:
             base = 200_000_000 if tier == "Premium" else 100_000_000
