@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 
-from . import agents, analyst, coordinator, funnel_detail, insights, llm, queries, quality, sql_workspace
+from . import agents, analyst, auth, coordinator, funnel_detail, insights, llm, queries, quality, sql_workspace
 from .config import settings
 from .llm import polish_stream
 from .rate_limit import limiter
@@ -54,10 +54,11 @@ async def access_log(request: Request, call_next):
     t0 = time.perf_counter()
     path = request.url.path
     
-    # Auth gate for all /api routes except health
-    if path.startswith("/api") and path != "/api/health":
+    # Auth gate for all /api routes except health and login/register themselves
+    if path.startswith("/api") and path not in ("/api/health", "/api/auth/login", "/api/auth/register"):
         auth_header = request.headers.get("Authorization")
-        if not auth_header or not auth_header.startswith("Bearer ") or auth_header.split(" ")[1] != "tryon":
+        token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else None
+        if not auth.username_for(token):
             return JSONResponse({"error": "Unauthorized"}, status_code=401, headers={"WWW-Authenticate": "Bearer"})
 
     response = await call_next(request)
@@ -65,6 +66,29 @@ async def access_log(request: Request, call_next):
     if path.startswith("/api"):
         print(json.dumps({"rid": rid, "path": path, "status": response.status_code, "ms": round(dt, 1)}))
     return response
+
+
+# ---- auth -----------------------------------------------------------------
+
+class LoginBody(BaseModel):
+    username: str
+    password: str
+
+
+@app.post("/api/auth/login")
+def api_login(body: LoginBody):
+    token = auth.login(body.username, body.password)
+    if not token:
+        return JSONResponse({"error": "invalid credentials"}, status_code=401)
+    return {"token": token, "username": body.username}
+
+
+@app.post("/api/auth/register")
+def api_register(body: LoginBody):
+    if not auth.register(body.username, body.password):
+        return JSONResponse({"error": "username taken or invalid"}, status_code=400)
+    token = auth.login(body.username, body.password)
+    return {"token": token, "username": body.username}
 
 
 # ---- meta ---------------------------------------------------------------

@@ -21,9 +21,10 @@ window.fetch = async (...args) => {
   let [resource, config] = args;
   const url = typeof resource === 'string' ? resource : (resource && resource.url) || '';
   const isApi = url.startsWith('/api') || url.startsWith(location.origin + '/api');
-  if (isApi && sessionStorage.getItem('grc-auth') === '1') {
+  const token = sessionStorage.getItem('grc-token');
+  if (isApi && token) {
     config = config || {};
-    config.headers = { ...config.headers, Authorization: 'Bearer tryon' };
+    config.headers = { ...config.headers, Authorization: `Bearer ${token}` };
   }
   return originalFetch(resource, config);
 };
@@ -103,25 +104,31 @@ const state = { page: 'overview', meta: null, filters: {} };
 
 // ---------- boot ----------
 // ---------- auth gate ----------
-const CREDS = { try: 'tryon' };
 (function gate() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) document.body.classList.add('no-motion');
   applyTheme(localStorage.getItem('hub-theme') || 'dark');
-  if (sessionStorage.getItem('grc-auth') === '1') { $('#login').style.display = 'none'; enterApp(); return; }
+  if (sessionStorage.getItem('grc-token')) { $('#login').style.display = 'none'; enterApp(); return; }
   // show login
   $('#login').style.display = 'grid';
   startLoginCanvas();
   const fill = (u, p) => { $('#loginUser').value = u; $('#loginPass').value = p; };
   $$('.login-demo code').forEach((c, i) => c.onclick = () => fill('try', 'tryon'));
-  $('#loginForm').onsubmit = e => {
+  $('#loginForm').onsubmit = async e => {
     e.preventDefault();
     const u = $('#loginUser').value.trim(), p = $('#loginPass').value;
-    if (CREDS[u] === p) {
-      sessionStorage.setItem('grc-auth', '1');
+    try {
+      const r = await originalFetch('/api/auth/login', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p }),
+      });
+      if (!r.ok) throw new Error('bad creds');
+      const { token } = await r.json();
+      sessionStorage.setItem('grc-token', token);
+      sessionStorage.setItem('grc-user', u);
       $('#login').classList.add('hide');
       setTimeout(() => { $('#login').style.display = 'none'; }, 520);
       enterApp();
-    } else {
+    } catch {
       const card = $('#loginForm'); card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
       const err = $('#loginErr'); err.textContent = 'Incorrect username or password. Try the demo access below.'; err.classList.add('show');
     }
@@ -2922,7 +2929,7 @@ function initAccount() {
   document.addEventListener('click', e => {
     if (!$('#accountDrop').contains(e.target) && e.target !== $('#accountBtn')) $('#accountDrop').classList.remove('open');
   }, true);
-  $('#logoutBtn').onclick = () => { sessionStorage.removeItem('grc-auth'); location.reload(); };
+  $('#logoutBtn').onclick = () => { sessionStorage.removeItem('grc-token'); sessionStorage.removeItem('grc-user'); location.reload(); };
 }
 function addMsg(role) { const m = el('div', `msg ${role}`); const b = el('div', 'bubble'); m.append(b); $('#chatBody').append(m); $('#chatBody').scrollTop = 1e6; return b; }
 function botSay(ans) {
