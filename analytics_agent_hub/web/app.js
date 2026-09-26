@@ -22,9 +22,11 @@ window.fetch = async (...args) => {
   const url = typeof resource === 'string' ? resource : (resource && resource.url) || '';
   const isApi = url.startsWith('/api') || url.startsWith(location.origin + '/api');
   const token = sessionStorage.getItem('grc-token');
+  const orgId = sessionStorage.getItem('grc-org');
   if (isApi && token) {
     config = config || {};
     config.headers = { ...config.headers, Authorization: `Bearer ${token}` };
+    if (orgId && !url.includes('/api/orgs')) config.headers['X-Org-Id'] = orgId;
   }
   return originalFetch(resource, config);
 };
@@ -2924,12 +2926,45 @@ function initChat() {
 function closeChat() { $('#chatPanel').classList.remove('open'); $('#fab').style.display = ''; }
 
 // ---------- account dropdown ----------
+async function refreshOrgSelect() {
+  const sel = $('#orgSelect');
+  const current = sessionStorage.getItem('grc-org') || '';
+  let orgs = [];
+  try { orgs = (await api('/api/orgs')).orgs || []; } catch { /* not logged in yet */ }
+  sel.innerHTML = '<option value="">Default (shared demo)</option>' +
+    orgs.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+  sel.value = orgs.some(o => o.id === current) ? current : '';
+  if (sel.value !== current) sessionStorage.removeItem('grc-org'); // stale org id, fall back
+}
+
 function initAccount() {
-  $('#accountBtn').onclick = e => { e.stopPropagation(); $('#accountDrop').classList.toggle('open'); };
+  $('#accountUser').textContent = sessionStorage.getItem('grc-user') || 'try';
+  $('#accountBtn').onclick = e => { e.stopPropagation(); $('#accountDrop').classList.toggle('open'); refreshOrgSelect(); };
   document.addEventListener('click', e => {
     if (!$('#accountDrop').contains(e.target) && e.target !== $('#accountBtn')) $('#accountDrop').classList.remove('open');
   }, true);
-  $('#logoutBtn').onclick = () => { sessionStorage.removeItem('grc-token'); sessionStorage.removeItem('grc-user'); location.reload(); };
+  $('#logoutBtn').onclick = () => { sessionStorage.removeItem('grc-token'); sessionStorage.removeItem('grc-user'); sessionStorage.removeItem('grc-org'); location.reload(); };
+  $('#orgSelect').onchange = e => {
+    if (e.target.value) sessionStorage.setItem('grc-org', e.target.value);
+    else sessionStorage.removeItem('grc-org');
+    location.reload(); // simplest way to re-fetch every page's data under the new org
+  };
+  $('#newOrgBtn').onclick = async () => {
+    const name = prompt('New organization name:');
+    if (!name) return;
+    $('#newOrgBtn').textContent = 'Creating… (~1-2 min)';
+    $('#newOrgBtn').disabled = true;
+    try {
+      const org = await api('/api/orgs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) });
+      sessionStorage.setItem('grc-org', org.id);
+      location.reload();
+    } catch {
+      alert('Could not create org.');
+      $('#newOrgBtn').textContent = '+ New org';
+      $('#newOrgBtn').disabled = false;
+    }
+  };
+  refreshOrgSelect();
 }
 function addMsg(role) { const m = el('div', `msg ${role}`); const b = el('div', 'bubble'); m.append(b); $('#chatBody').append(m); $('#chatBody').scrollTop = 1e6; return b; }
 function botSay(ans) {
