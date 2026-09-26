@@ -1,0 +1,26 @@
+name: ci
+
+on:
+  push: {branches: [main]}
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - name: Setup env
+        run: |
+          uv venv -p 3.12 .venv
+          uv pip install -r requirements.txt
+      - name: Unit tests (generator invariants)
+        run: .venv/bin/python -m pytest tests/ -q
+      - name: Generate 60 days of synthetic data
+        run: .venv/bin/python generator/generate.py --days 60
+      - name: Load raw
+        run: .venv/bin/python pipeline/load_raw.py
+      - name: dbt build (models + snapshot + 60 tests)
+        run: cd dbt && ../.venv/bin/dbt build --profiles-dir .
+      - name: Dashboard renders
+        run: .venv/bin/python dashboard/build_dashboard.py

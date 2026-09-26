@@ -1,0 +1,9 @@
+funnel_warehouse:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', '../warehouse/funnel.duckdb') }}"
+      threads: 4
+    # prod (BigQuery) profile documented in docs/adr/003, same models,
+    # swap adapter + partitioning configs. Kept out of the demo path.

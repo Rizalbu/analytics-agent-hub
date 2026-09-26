@@ -18,11 +18,11 @@ import secrets
 import sys
 from pathlib import Path
 
-from .config import settings
-
-_ROOT = Path(__file__).resolve().parents[1]
-ORGS_PATH = Path(settings.db_path).parent.parent / "orgs.json"
-ORGS_DATA_DIR = Path(settings.db_path).parent.parent / "orgs"
+_ROOT = Path(__file__).resolve().parents[1]  # analytics_agent_hub/, independent
+                                              # of where the warehouse resolves
+                                              # to (own repo vs. sibling vendor)
+ORGS_PATH = _ROOT / "data" / "orgs.json"
+ORGS_DATA_DIR = _ROOT / "data" / "orgs"
 
 
 def _load() -> dict[str, dict]:

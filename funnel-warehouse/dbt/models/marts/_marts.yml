@@ -1,0 +1,74 @@
+version: 2
+
+models:
+  - name: dim_studio
+    columns:
+      - name: studio_key
+        tests: [unique, not_null]
+  - name: dim_channel
+    description: Conformed channel dimension (current state of SCD2 snapshot).
+    columns:
+      - name: channel_key
+        tests: [unique, not_null]
+      - name: channel_group
+        tests:
+          - accepted_values:
+              arguments:
+                values: [paid_social, paid_search, paid_video, referral, organic, partner]
+  - name: dim_member
+    columns:
+      - name: member_key
+        tests: [unique, not_null]
+  - name: dim_date
+    columns:
+      - name: date_day
+        tests: [unique, not_null]
+
+  - name: fct_funnel_daily
+    description: Daily funnel, cohort-attributed to lead date. Grain = date x studio x channel.
+    tests:
+      - funnel_monotonicity:
+          arguments:
+            stage_columns: [leads, qualified, booked, visited, purchased]
+    columns:
+      - name: funnel_row_key
+        tests: [unique, not_null]
+      - name: date_day
+        tests: [not_null]
+      - name: studio_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_studio')
+                field: studio_key
+      - name: channel_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_channel')
+                field: channel_key
+
+  - name: fct_revenue
+    description: One row per sale with point-in-time list price.
+    columns:
+      - name: sale_id
+        tests: [unique, not_null]
+      - name: list_price_at_sale
+        tests: [not_null]
+      - name: discount_amount
+        description: list price minus paid amount; negative would mean a wrong price version matched.
+
+  - name: fct_ad_spend
+    columns:
+      - name: channel_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_channel')
+                field: channel_key
+
+  - name: mart_executive_scorecard
+    description: Month x city exec rollup. Metric formulas in docs/metric_definitions.md.

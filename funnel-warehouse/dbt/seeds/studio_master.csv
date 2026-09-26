@@ -1,0 +1,13 @@
+studio_code,studio_name,city,open_date,capacity_tier
+S01,FitFlow Arden Central,Arden,2022-03-01,large
+S02,FitFlow Arden North,Arden,2022-09-15,medium
+S03,FitFlow Arden Park,Arden,2023-05-01,small
+S04,FitFlow Arden East,Arden,2024-01-10,medium
+S05,FitFlow Brightwater Bay,Brightwater,2022-06-01,large
+S06,FitFlow Brightwater Hills,Brightwater,2023-02-20,medium
+S07,FitFlow Brightwater Quay,Brightwater,2023-11-05,small
+S08,FitFlow Brightwater West,Brightwater,2024-04-01,medium
+S09,FitFlow Crestline Square,Crestline,2022-12-01,large
+S10,FitFlow Crestline Valley,Crestline,2023-08-15,medium
+S11,FitFlow Crestline Ridge,Crestline,2024-02-01,small
+S12,FitFlow Crestline Gate,Crestline,2024-06-01,medium

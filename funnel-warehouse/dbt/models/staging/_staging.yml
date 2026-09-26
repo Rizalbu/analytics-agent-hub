@@ -1,0 +1,50 @@
+version: 2
+
+models:
+  - name: stg_leads
+    description: Typed, deduped leads. PII (name/phone) stops here; marts never expose it.
+    columns:
+      - name: lead_id
+        tests: [unique, not_null]
+      - name: created_date
+        tests: [not_null]
+      - name: studio_code
+        tests: [not_null]
+  - name: stg_bookings
+    columns:
+      - name: booking_id
+        tests: [unique, not_null]
+      - name: lead_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_leads')
+                field: lead_id
+  - name: stg_visits
+    columns:
+      - name: visit_id
+        tests: [unique, not_null]
+      - name: booking_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_bookings')
+                field: booking_id
+  - name: stg_sales
+    columns:
+      - name: sale_id
+        tests: [unique, not_null]
+      - name: amount
+        tests: [not_null]
+      - name: payment_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: [paid, installment]
+  - name: stg_ad_spend
+    description: Spend parsed from mixed numeric/"Rp 1.250.000" text via parse_money macro.
+    columns:
+      - name: spend
+        tests: [not_null]

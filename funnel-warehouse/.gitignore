@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+data/drops/
+dbt/logs/
+dbt/dbt_packages/
+.env
+
+# Vendored here (unlike the standalone funnel-warehouse repo) so
+# analytics-agent-hub is a single `git clone` away from a working demo
+# with real data + real dbt artifacts, no separate build step required:
+# warehouse/ and dbt/target/ are intentionally NOT ignored below.
+# dashboard/index.html: same reasoning, kept as a pre-built static demo.

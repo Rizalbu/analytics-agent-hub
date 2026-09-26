@@ -1,0 +1,13 @@
+
+    
+    
+    
+    create table "funnel"."main_seeds"."price_book" ("plan_code" text,"plan_name" text,"monthly_price" bigint,"valid_from" date,"valid_to" date)
+  ;
+    -- dbt seed --
+    
+          COPY "funnel"."main_seeds"."price_book" FROM '/home/user/analytics-agent-hub/funnel-warehouse/dbt/seeds/price_book.csv' (FORMAT CSV, HEADER TRUE, DELIMITER ',')
+        
+
+;
+  

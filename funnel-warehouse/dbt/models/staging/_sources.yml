@@ -1,0 +1,22 @@
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Studio operational CSVs landed by pipeline/load_raw.py. Structurally
+      normalized (header aliases, lineage columns) but semantically dirty:
+      mixed date formats, money-as-text, duplicate rows, messy booleans.
+    schema: raw
+    tables:
+      - name: leads
+        description: One row per lead form-fill/chat (duplicates present).
+      - name: bookings
+        description: Trial-class bookings linked to leads.
+      - name: visits
+        description: Trial attendance records; `attended_raw` is a messy token.
+      - name: sales
+        description: Membership purchases linked to leads.
+      - name: ad_spend
+        description: Daily spend per raw channel label; `spend_raw` mixes numbers and "Rp 1.250.000" text.
+      - name: channel_mapping_current
+        description: Current-state mapping raw channel label -> conformed channel. Snapshotted for SCD2 history.

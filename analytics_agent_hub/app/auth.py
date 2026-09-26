@@ -13,9 +13,10 @@ import secrets
 import time
 from pathlib import Path
 
-from .config import settings
-
-USERS_PATH = Path(settings.db_path).parent.parent / "users.json"
+_ROOT = Path(__file__).resolve().parents[1]  # analytics_agent_hub/, independent
+                                              # of where the warehouse resolves
+                                              # to (own repo vs. sibling vendor)
+USERS_PATH = _ROOT / "data" / "users.json"
 _SESSIONS: dict[str, dict] = {}  # token -> {username, issued_at}
 SESSION_TTL = 60 * 60 * 12  # 12h
 

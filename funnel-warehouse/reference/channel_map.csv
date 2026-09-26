@@ -1,0 +1,15 @@
+channel_raw,channel_name,channel_group
+FB Ads,Facebook Ads,paid_social
+facebook,Facebook Ads,paid_social
+Instagram Ads,Instagram Ads,paid_social
+IG,Instagram Ads,paid_social
+google search,Google Search,paid_search
+Google Ads,Google Search,paid_search
+tiktok ads,TikTok Ads,paid_social
+TikTok,TikTok Ads,paid_social
+referral,Referral,referral
+Member Referral,Referral,referral
+walk-in,Walk-in,organic
+Walk In,Walk-in,organic
+partner gym,Partner Gym,partner
+Partner,Partner Gym,partner

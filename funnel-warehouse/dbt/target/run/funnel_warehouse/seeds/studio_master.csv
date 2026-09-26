@@ -1,0 +1,13 @@
+
+    
+    
+    
+    create table "funnel"."main_seeds"."studio_master" ("studio_code" text,"studio_name" text,"city" text,"open_date" date,"capacity_tier" text)
+  ;
+    -- dbt seed --
+    
+          COPY "funnel"."main_seeds"."studio_master" FROM '/home/user/analytics-agent-hub/funnel-warehouse/dbt/seeds/studio_master.csv' (FORMAT CSV, HEADER TRUE, DELIMITER ',')
+        
+
+;
+  

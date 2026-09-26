@@ -1,0 +1,13 @@
+
+    
+    
+    
+    create table "funnel"."main_seeds"."monthly_targets" ("month" text,"studio_code" text,"target_leads" bigint,"target_visits" bigint,"target_revenue" bigint)
+  ;
+    -- dbt seed --
+    
+          COPY "funnel"."main_seeds"."monthly_targets" FROM '/home/user/analytics-agent-hub/funnel-warehouse/dbt/seeds/monthly_targets.csv' (FORMAT CSV, HEADER TRUE, DELIMITER ',')
+        
+
+;
+  

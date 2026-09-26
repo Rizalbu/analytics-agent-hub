@@ -1,0 +1,51 @@
+name: funnel_warehouse
+version: "1.0.0"
+profile: funnel_warehouse
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+target-path: target
+clean-targets: [target, dbt_packages]
+
+vars:
+  late_arrival_days: 7
+
+models:
+  funnel_warehouse:
+    staging:
+      # table (not view): typed/deduped data is physically materialized once,
+      # which also sidesteps a DuckDB 1.5.x optimizer quirk when folding
+      # multi-layer views with QUALIFY into downstream CTAS
+      +materialized: table
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    marts:
+      +materialized: table
+      +schema: marts
+
+seeds:
+  funnel_warehouse:
+    +schema: seeds
+    price_book:
+      +column_types:
+        monthly_price: bigint
+        valid_from: date
+        valid_to: date
+    studio_master:
+      +column_types:
+        open_date: date
+    monthly_targets:
+      +column_types:
+        target_leads: bigint
+        target_visits: bigint
+        target_revenue: bigint
+
+snapshots:
+  funnel_warehouse:
+    +target_schema: snapshots
