@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 
-from . import agents, analyst, auth, coordinator, datasources, db, funnel_detail, insights, llm, queries, quality, sql_workspace, tenancy
+from . import agents, analyst, auth, coordinator, datasources, db, engineer, funnel_detail, insights, llm, queries, quality, sql_workspace, tenancy
 from .config import settings
 from .llm import polish_stream
 from .rate_limit import limiter
@@ -336,6 +336,40 @@ def api_remove_datasource(source_id: str):
     if not datasources.remove_source(source_id):
         return JSONResponse({"error": "source not found"}, status_code=404)
     return {"ok": True}
+
+
+# ---- Owner-gated: role management + autonomous engineering loop -----------
+
+class PromoteBody(BaseModel):
+    username: str
+    role: str  # "owner" | "member"
+
+
+@app.post("/api/auth/promote")
+def api_promote(body: PromoteBody, request: Request):
+    if not auth.is_owner(request.state.username):
+        return JSONResponse({"error": "owner role required"}, status_code=403)
+    if not auth.set_role(body.username, body.role):
+        return JSONResponse({"error": "user not found or invalid role"}, status_code=400)
+    return {"ok": True}
+
+
+class EngineerBody(BaseModel):
+    instruction: str
+    filename: str  # e.g. "churn_alert.py", saved under app/agent_features/
+
+
+@app.post("/api/agents/engineer")
+def api_engineer(body: EngineerBody, request: Request):
+    if not auth.is_owner(request.state.username):
+        return JSONResponse({"error": "owner role required to trigger the engineering loop"}, status_code=403)
+    try:
+        result = engineer.propose_and_apply(body.instruction, body.filename, request.state.username)
+        return result
+    except engineer.EngineerError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+    except RuntimeError as e:  # no LLM configured
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
 
 
 # ---- Agent Actions ------------------------------------------------------

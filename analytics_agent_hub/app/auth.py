@@ -1,9 +1,9 @@
 """Real login: hashed passwords + issued session tokens.
 
 Replaces the old scheme where the frontend hardcoded `Bearer tryon` and the
-backend checked that literal string — any request with that string worked,
+backend checked that literal string, so any request with that string worked,
 logged-in or not. Users are stored in a local JSON file (single shared
-warehouse still, no per-org isolation yet — that's the next layer).
+warehouse still, no per-org isolation yet; that's the next layer).
 """
 from __future__ import annotations
 
@@ -27,8 +27,14 @@ def _hash(password: str, salt: str) -> str:
 
 def _load_users() -> dict[str, dict]:
     if not USERS_PATH.exists():
+        # "try"/"tryon" is shown ON THE LOGIN SCREEN as public demo access,
+        # so it must never hold "owner" (which can trigger the autonomous
+        # engineering loop) or anyone who opens the app gets that power.
+        # It's seeded as a plain "member". A real owner account is created
+        # separately (see bin/create_owner.py) and its credentials are
+        # never displayed in the UI.
         salt = secrets.token_hex(16)
-        users = {"try": {"salt": salt, "hash": _hash("tryon", salt)}}
+        users = {"try": {"salt": salt, "hash": _hash("tryon", salt), "role": "member"}}
         _save_users(users)
         return users
     return json.loads(USERS_PATH.read_text())
@@ -44,7 +50,28 @@ def register(username: str, password: str) -> bool:
     if not username or not password or username in users:
         return False
     salt = secrets.token_hex(16)
-    users[username] = {"salt": salt, "hash": _hash(password, salt)}
+    users[username] = {"salt": salt, "hash": _hash(password, salt), "role": "member"}
+    _save_users(users)
+    return True
+
+
+def role_for(username: str | None) -> str | None:
+    if not username:
+        return None
+    return _load_users().get(username, {}).get("role")
+
+
+def is_owner(username: str | None) -> bool:
+    return role_for(username) == "owner"
+
+
+def set_role(username: str, role: str) -> bool:
+    if role not in ("owner", "member"):
+        return False
+    users = _load_users()
+    if username not in users:
+        return False
+    users[username]["role"] = role
     _save_users(users)
     return True
 

@@ -1944,7 +1944,7 @@ PAGES.connectors = async (c) => {
     <div style="font-size:var(--fs-xl);font-weight:700;letter-spacing:-.02em">Data Sources</div>
     <div style="color:var(--text-dim);margin-top:6px;max-width:680px;line-height:1.6">
       Two kinds here, both real: the <b>warehouse</b> (always on) and <b>Sheet Sync</b> (see its own page)
-      are built in. Below, register your own local CSV — it's loaded into DuckDB and immediately
+      are built in. Below, register your own local CSV: it's loaded into DuckDB and immediately
       queryable from <a href="#" onclick="go('sql');return false">SQL Workspace</a> as
       <code>custom.&lt;table&gt;</code>, and the Data/Analytics Engineer agents mention it in their
       real answers. Nothing here is a mockup: an empty list below means no CSV has been registered yet.</div>`;
@@ -1986,7 +1986,7 @@ PAGES.connectors = async (c) => {
       if (!r.ok || body.ok === false) throw new Error(body.error || 'failed');
       go('connectors'); // reload the page to show the new source
     } catch (err) {
-      errEl.textContent = err.message || 'Could not add source — check the path exists on this machine.';
+      errEl.textContent = err.message || 'Could not add source. Check the path exists on this machine.';
       errEl.style.display = '';
     }
   };

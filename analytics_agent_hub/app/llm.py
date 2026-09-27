@@ -168,6 +168,37 @@ def _stream_anthropic(cfg, question, answer_obj, system=SYSTEM):
                 continue
 
 
+def complete(prompt: str, system: str = "", max_tokens: int = 4000) -> str:
+    """One-shot, non-streaming completion. Raises on failure (unlike
+    polish_stream, which swallows errors for the chat UI): a caller like
+    the engineering loop needs to know generation actually failed, not
+    silently fall back to nothing.
+    """
+    cfg = _active()
+    if not cfg:
+        raise RuntimeError("No LLM configured. Connect one in Settings first.")
+    if cfg["provider"] == "anthropic":
+        base = cfg["base_url"].rstrip("/")
+        if not base.endswith("/v1"):
+            base += "/v1"
+        r = httpx.post(base + "/messages", timeout=90,
+                        headers={"x-api-key": cfg["api_key"],
+                                 "anthropic-version": "2023-06-01"},
+                        json={"model": cfg["model"], "max_tokens": max_tokens,
+                              "system": system,
+                              "messages": [{"role": "user", "content": prompt}]})
+        r.raise_for_status()
+        return "".join(b.get("text", "") for b in r.json().get("content", []))
+    else:
+        r = httpx.post(cfg["base_url"].rstrip("/") + "/chat/completions", timeout=90,
+                        headers={"Authorization": f"Bearer {cfg['api_key']}"},
+                        json={"model": cfg["model"], "max_tokens": max_tokens,
+                              "messages": [{"role": "system", "content": system},
+                                           {"role": "user", "content": prompt}]})
+        r.raise_for_status()
+        return r.json()["choices"][0]["message"]["content"]
+
+
 def test_connection(cfg: dict) -> dict:
     """One-shot non-stream probe so the UI can verify a key before saving."""
     try:

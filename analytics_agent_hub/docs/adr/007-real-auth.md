@@ -1,8 +1,8 @@
-# ADR-007 — Real login (replacing the hardcoded Bearer token)
+# ADR-007: Real login (replacing the hardcoded Bearer token)
 
 ## Context
 
-The API gate checked `Authorization: Bearer tryon` — a literal string baked
+The API gate checked `Authorization: Bearer tryon`, a literal string baked
 into both the frontend (`CREDS = { try: 'tryon' }`, always sent regardless of
 what the user typed) and the backend middleware. Anyone could call the API
 directly with that string with no login at all; the login form was cosmetic.
@@ -19,6 +19,6 @@ still works. `POST /api/auth/register` lets a second user sign up.
 
 ## Not done here
 
-Still a single shared warehouse — every logged-in user sees the same data.
+Still a single shared warehouse: every logged-in user sees the same data.
 Per-organization data isolation (`X-Org-Id`, separate data slices) is the
 next layer, tracked in `docs/BRIEF.md`.

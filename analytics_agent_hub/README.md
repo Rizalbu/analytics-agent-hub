@@ -2,7 +2,7 @@
 
 > Ported in as-is from `growth_analytics_platform` (own repo) as the feature
 > base for **analytics-agent-hub**. Multi-tenant layer (org isolation via
-> `X-Org-Id`, auth/CSRF, real channel-sending workers — inspired by
+> `X-Org-Id`, auth/CSRF, real channel-sending workers, inspired by
 > `ahmadrosid/nakama`, MIT) is the next layer to add on top; see
 > [`../docs/BRIEF.md`](../docs/BRIEF.md) for the full spec.
 

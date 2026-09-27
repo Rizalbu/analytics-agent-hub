@@ -74,7 +74,7 @@ def _conn_for(q: str):
     schemas = _schemas_used(q)
     if "custom" in schemas:
         if schemas - {"custom"}:
-            raise SqlError("Joining a custom source with warehouse tables isn't supported yet — query one or the other.")
+            raise SqlError("Joining a custom source with warehouse tables isn't supported yet: query one or the other.")
         if not datasources.SOURCES_DB_PATH.exists():
             raise SqlError("No custom data sources registered yet.")
         return _duckdb.connect(str(datasources.SOURCES_DB_PATH), read_only=True), True

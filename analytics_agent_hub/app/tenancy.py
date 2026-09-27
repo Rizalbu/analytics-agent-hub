@@ -3,13 +3,13 @@
 Isolation boundary = a separate DuckDB warehouse file per org, not a shared
 table with an org_id column. That's a deliberate simplification for this
 codebase: queries.py / coordinator.py / analyst.py / insights.py / etc. never
-change — they just get pointed at a different file for the duration of a
+change; they just get pointed at a different file for the duration of a
 request (see db.set_db_path()), the same way the nakama pattern makes org
 the isolation boundary but via a header + middleware instead of a schema
 migration across 26 tables.
 
 Creating an org runs the full synthetic-warehouse generator, so it takes
-~1-2 minutes — same cost as the app's own first-boot bootstrap.
+~1-2 minutes, the same cost as the app's own first-boot bootstrap.
 """
 from __future__ import annotations
 

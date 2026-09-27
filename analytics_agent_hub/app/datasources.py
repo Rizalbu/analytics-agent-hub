@@ -1,15 +1,17 @@
 """Real user-registered data sources (replaces the fictional connector
-catalog that used to live in app.js / funnel_detail.py — those showed fake
+catalog that used to live in app.js / funnel_detail.py, which showed fake
 stats for Postgres/BigQuery/Snowflake/etc. with zero actual connections).
 
-A source today = a local CSV file, loaded into its own writable DuckDB
-(sources.duckdb), attached into every query connection as schema `custom`
-(see db.py). SQL Workspace can query `custom.<table>` directly, and the
+A source today is a local CSV file, loaded into its own writable DuckDB
+(sources.duckdb) under a schema named `custom`, kept as a separate file
+from the read-only warehouse (see sql_workspace.py's connection routing,
+not an ATTACH into the warehouse connection, to avoid read/write lock
+conflicts). SQL Workspace can query `custom.<table>` directly, and the
 Data/Analytics Engineer agents mention registered sources in their real
 context (see agents.py agent_tool_context). Not attempted here: the NLQ
 "AI Analyst" is deterministic and schema-specific to the FitFlow marts, so
-it doesn't dynamically understand an arbitrary uploaded table's columns —
-that would need a schema-aware LLM-grounded rewrite, a bigger job than this.
+it doesn't dynamically understand an arbitrary uploaded table's columns.
+That would need a schema-aware LLM-grounded rewrite, a bigger job than this.
 """
 from __future__ import annotations
 
