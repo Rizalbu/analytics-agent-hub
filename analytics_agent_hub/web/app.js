@@ -725,7 +725,7 @@ function renderFunnelExplorer(c, d, dd) {
   const contStages = ['impression','click','lead','nurtured','purchased'];
   const contLabels = ['Impression','Click','Lead','Nurtured','Member'];
   const contData = contStages.map((st, si) => {
-    const items = dd.sources.map(s => ({ name: s.source_name, val: s[st] || 0, color: s.color }));
+    const items = dd.sources.map(s => ({ name: s.source_name, val: s[srcKey(st)] || 0, color: s.color }));
     items.sort((a, b) => b.val - a.val);
     const total = items.reduce((a, b) => a + b.val, 0);
     return { label: contLabels[si], items, total };

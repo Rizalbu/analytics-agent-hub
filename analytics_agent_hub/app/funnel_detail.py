@@ -204,9 +204,11 @@ def generate_funnel(filters: dict | None = None) -> dict:
     stage_keys = [s for s in STAGES if s != "retained"]  # all except retained
     for i in range(1, len(stage_keys)):
         frm, to = stage_keys[i - 1], stage_keys[i]
-        frm_key = "clicks" if frm == "click" else frm
-        to_key = "clicks" if to == "click" else to
-        pv, cv = total_by_stage.get(frm_key, 0), total_by_stage.get(to_key, 0)
+        # total_by_stage is keyed by the singular STAGES names (see the
+        # accumulation loop above); it never uses "clicks"/"impressions",
+        # so no key translation is needed here, that was the bug (both
+        # Impression->Click and Click->Lead always read back 0).
+        pv, cv = total_by_stage.get(frm, 0), total_by_stage.get(to, 0)
         steps.append({
             "from": STAGE_LABELS.get(frm, frm),
             "to": STAGE_LABELS.get(to, to),
