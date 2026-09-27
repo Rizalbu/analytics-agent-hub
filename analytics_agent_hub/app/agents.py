@@ -475,16 +475,19 @@ def _seed():
     existing = con.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
     if existing > 0:
         return
-    with _agent_lock:
-        for p in SEED_PROJECTS:
-            con.execute("INSERT INTO projects (id, name, goal, status, agents_json, created) VALUES (?, ?, ?, ?, ?, ?)",
-                       [p["id"], p["name"], p["goal"], p["status"], json.dumps(p["agents"]), p["created"]])
-        for d in SEED_DELIVERABLES:
-            con.execute("INSERT INTO deliverables (id, title, type, agent, status, project, created) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                       [d["id"], d["title"], d["type"], d["agent"], d["status"], d["project"], d["created"]])
-        for r in SEED_REVIEWS:
-            con.execute("INSERT INTO reviews (id, title, item, requested_by, assigned_to, status, priority, comment, updated) VALUES (?, ?, ?, ?, ?, ?, ?, '', '')",
-                       [r["id"], r["title"], r["item"], r["requested_by"], r["assigned_to"], r["status"], r["priority"]])
+    # No lock here: _seed() only ever runs inside _agent_db()'s lazy-init
+    # branch, which callers like _log() already reach through _agent_lock
+    # (threading.Lock is not reentrant - acquiring it again here deadlocked
+    # the very first write on a truly empty agent.duckdb).
+    for p in SEED_PROJECTS:
+        con.execute("INSERT INTO projects (id, name, goal, status, agents_json, created) VALUES (?, ?, ?, ?, ?, ?)",
+                   [p["id"], p["name"], p["goal"], p["status"], json.dumps(p["agents"]), p["created"]])
+    for d in SEED_DELIVERABLES:
+        con.execute("INSERT INTO deliverables (id, title, type, agent, status, project, created) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                   [d["id"], d["title"], d["type"], d["agent"], d["status"], d["project"], d["created"]])
+    for r in SEED_REVIEWS:
+        con.execute("INSERT INTO reviews (id, title, item, requested_by, assigned_to, status, priority, comment, updated) VALUES (?, ?, ?, ?, ?, ?, ?, '', '')",
+                   [r["id"], r["title"], r["item"], r["requested_by"], r["assigned_to"], r["status"], r["priority"]])
     import random
     rng = random.Random(42)
     task_templates = [
@@ -499,7 +502,15 @@ def _seed():
     ]
     for title, desc, agent in task_templates:
         prio = rng.choice(["low", "medium", "high"])
-        create_task(agent, title, desc, prio)
+        # Insert directly rather than via create_task(): that helper takes
+        # _agent_lock itself and calls _log(), both already held/in-flight
+        # here (_seed() runs inside _agent_db(), reached through _log()'s
+        # own lock on a fresh db - re-entering either would deadlock).
+        now = _ts()
+        _agent_db().execute(
+            "INSERT INTO tasks (id, agent, title, description, status, priority, project, created, updated) "
+            "VALUES (?, ?, ?, ?, 'open', ?, ?, ?, ?)",
+            [f"task-{_uuid.uuid4().hex[:8]}", agent, title, desc, prio, None, now, now])
 
     # Seed activity log entries for the timeline
     from datetime import timedelta

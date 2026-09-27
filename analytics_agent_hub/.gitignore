@@ -19,6 +19,12 @@ data/warehouse/
 *.duckdb
 *.db
 
+# Autonomous engineering loop: staged proposals live here until promoted or
+# rejected. Each one is recorded permanently via its own agent/<slug> git
+# branch (see app/engineer.py), so the working file on main never needs to
+# be tracked - promotion is what commits it for real.
+app/agent_features_staged/*.py
+
 # IDE / local tooling
 .agents/
 .vscode/

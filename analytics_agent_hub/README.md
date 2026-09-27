@@ -104,7 +104,7 @@ committed. Can also preset via `.env` (see `.env.example`).
 | | Forecast | 3-method forecast + rolling-origin backtest (MAPE) |
 | | Anomalies | rolling z-score scanner + city×month CR heatmap |
 | | Member Origins | world map, animated origin→hub flows, location intelligence |
-| Workspace | AI Agents | 18 agents + Orchestrator; tasks, deliverables, reviews, collaborations |
+| Workspace | AI Agents | 18 agents + Orchestrator; tasks, deliverables, reviews, collaborations; owner-only Engineering Loop with a staged review queue (live "try it" preview, promote/reject, per-org rollout + kill switch) |
 | | SQL Workspace | read-only SQL editor, schema browser, results, CSV export |
 | Engineering | Data Sources | multi-source connector catalog |
 | | Model Lineage | dbt model graph (staging → marts) |
@@ -154,6 +154,7 @@ Browser SPA (web/) ──fetch (Bearer auth)──▶ FastAPI (app/)
 - [ADR-004: SSE streaming](docs/adr/004-sse-streaming.md)
 - [ADR-005: AI Coordinator (fan-out routing)](docs/adr/005-ai-coordinator.md)
 - [ADR-006: SQL Workspace guardrails](docs/adr/006-sql-workspace.md)
+- [ADR-007: Engineering Loop staging pipeline](docs/adr/007-engineering-loop-staging.md)
 - [AI Studio design blueprint](docs/ai-studio.md) · [LinkedIn kit](docs/linkedin_kit.md)
 
 ## Privacy

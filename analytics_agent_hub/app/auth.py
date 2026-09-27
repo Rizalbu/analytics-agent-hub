@@ -65,6 +65,10 @@ def is_owner(username: str | None) -> bool:
     return role_for(username) == "owner"
 
 
+def owner_usernames() -> list[str]:
+    return [u for u, v in _load_users().items() if v.get("role") == "owner"]
+
+
 def set_role(username: str, role: str) -> bool:
     if role not in ("owner", "member"):
         return False

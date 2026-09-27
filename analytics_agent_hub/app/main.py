@@ -43,11 +43,35 @@ app = FastAPI(title="Growth Command Hub", version="1.0.0", lifespan=lifespan)
 WEB = Path(__file__).resolve().parents[1] / "web"
 
 
+def _feature_gate(filename: str):
+    """Per-request dependency for a promoted agent feature: honors the
+    promoted_features.json manifest's org scope and enabled flag, so a
+    feature can be disabled instantly (no restart) or limited to the org
+    that promoted it, without the LLM-generated route needing to know
+    anything about tenancy itself. A feature with no manifest entry (none
+    of today's built-ins go through the engineering loop) is always allowed.
+    """
+    async def _dep(request: Request):
+        entry = engineer.get_manifest_entry(filename)
+        if entry is None:
+            return
+        if not entry.get("enabled", True):
+            raise HTTPException(status_code=404)
+        if entry.get("scope") == "global":
+            return
+        org_id = request.headers.get("X-Org-Id")
+        if org_id and org_id in entry.get("org_ids", []):
+            return
+        raise HTTPException(status_code=404)
+    return _dep
+
+
 def _mount_agent_features() -> list[str]:
-    """Auto-discover and mount any APIRouter the engineering loop wrote into
-    app/agent_features/. This is what makes engineer.py's promise to the LLM
-    ("the app will mount it") actually true, rather than just writing a file
-    nothing ever imports. Runs once at import time, not per-request.
+    """Auto-discover and mount any APIRouter a PROMOTED engineering-loop
+    proposal wrote into app/agent_features/. Staged-but-not-yet-promoted
+    proposals live under agent_features_staged/, a directory this loop never
+    looks at, so nothing here can go live before a human promotes it. Runs
+    once at import time, not per-request.
     """
     import importlib
     from fastapi import APIRouter
@@ -61,7 +85,7 @@ def _mount_agent_features() -> list[str]:
             mod = importlib.import_module(modname)
             router = getattr(mod, "router", None)
             if isinstance(router, APIRouter):
-                app.include_router(router)
+                app.include_router(router, dependencies=[Depends(_feature_gate(path.name))])
                 mounted.append(path.stem)
         except Exception as e:
             print(f"agent_features/{path.name}: failed to mount ({e})")
@@ -405,20 +429,123 @@ def api_promote(body: PromoteBody, request: Request):
 
 class EngineerBody(BaseModel):
     instruction: str
-    filename: str  # e.g. "churn_alert.py", saved under app/agent_features/
+    filename: str  # e.g. "churn_alert.py", saved under app/agent_features/ once promoted
+
+
+def _require_owner(request: Request):
+    if not auth.is_owner(request.state.username):
+        return JSONResponse({"error": "owner role required"}, status_code=403)
+    return None
 
 
 @app.post("/api/agents/engineer")
 def api_engineer(body: EngineerBody, request: Request):
-    if not auth.is_owner(request.state.username):
-        return JSONResponse({"error": "owner role required to trigger the engineering loop"}, status_code=403)
+    err = _require_owner(request)
+    if err:
+        return err
     try:
-        result = engineer.propose_and_apply(body.instruction, body.filename, request.state.username)
+        result = engineer.propose(body.instruction, body.filename, request.state.username,
+                                   org_id=request.headers.get("X-Org-Id"))
         return result
     except engineer.EngineerError as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
     except RuntimeError as e:  # no LLM configured
         return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@app.get("/api/agents/engineer/staged")
+def api_engineer_staged_list(request: Request, status: str | None = None):
+    err = _require_owner(request)
+    if err:
+        return err
+    return {"proposals": engineer.list_staged(status)}
+
+
+@app.get("/api/agents/engineer/staged/{proposal_id}")
+def api_engineer_staged_detail(proposal_id: str, request: Request):
+    err = _require_owner(request)
+    if err:
+        return err
+    proposal = engineer.get_staged(proposal_id)
+    if not proposal:
+        return JSONResponse({"error": "proposal not found"}, status_code=404)
+    code = None
+    staged_path = engineer.STAGED_DIR / proposal["filename"]
+    if staged_path.exists():
+        code = staged_path.read_text()
+    return {"proposal": proposal, "code": code}
+
+
+class PreviewBody(BaseModel):
+    method: str = "GET"
+    path: str = "/"
+    query: dict | None = None
+    json_body: dict | None = None
+
+
+@app.post("/api/agents/engineer/staged/{proposal_id}/preview")
+def api_engineer_staged_preview(proposal_id: str, body: PreviewBody, request: Request):
+    err = _require_owner(request)
+    if err:
+        return err
+    try:
+        return engineer.preview(proposal_id, body.method, body.path, body.query, body.json_body)
+    except engineer.EngineerError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+class PromoteBody(BaseModel):
+    confirm: str  # must equal the proposal's exact filename
+    scope: str = "org"  # "org" (default: only the requesting org) or "global"
+
+
+@app.post("/api/agents/engineer/staged/{proposal_id}/promote")
+def api_engineer_staged_promote(proposal_id: str, body: PromoteBody, request: Request):
+    err = _require_owner(request)
+    if err:
+        return err
+    proposal = engineer.get_staged(proposal_id)
+    if not proposal:
+        return JSONResponse({"error": "proposal not found"}, status_code=404)
+    if proposal["status"] != "pending":
+        return JSONResponse({"error": f"already {proposal['status']}"}, status_code=400)
+
+    owners = auth.owner_usernames()
+    if proposal["requested_by"] == request.state.username and len(owners) > 1:
+        return JSONResponse({"error": "a different owner must approve this proposal"}, status_code=403)
+    if body.confirm.strip() != proposal["filename"]:
+        return JSONResponse({"error": "type the exact filename to confirm promotion"}, status_code=400)
+
+    try:
+        return engineer.promote(proposal_id, promoted_by=request.state.username,
+                                 scope=body.scope, org_id=proposal.get("org_id"))
+    except engineer.EngineerError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+class RejectBody(BaseModel):
+    comment: str = ""
+
+
+@app.post("/api/agents/engineer/staged/{proposal_id}/reject")
+def api_engineer_staged_reject(proposal_id: str, body: RejectBody, request: Request):
+    err = _require_owner(request)
+    if err:
+        return err
+    try:
+        return engineer.reject(proposal_id, rejected_by=request.state.username, comment=body.comment)
+    except engineer.EngineerError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.post("/api/agents/engineer/promoted/{filename}/toggle")
+def api_engineer_toggle(filename: str, request: Request, enabled: bool = Query(...)):
+    err = _require_owner(request)
+    if err:
+        return err
+    if not engineer.set_feature_enabled(filename, enabled):
+        return JSONResponse({"error": "feature not found in the promoted manifest"}, status_code=404)
+    return {"ok": True, "filename": filename, "enabled": enabled}
 
 
 # ---- Agent Actions ------------------------------------------------------

@@ -2286,13 +2286,15 @@ async function renderEngineeringLoop(c) {
       <span class="chip" style="font-size:10px;padding:2px 8px;pointer-events:none">Owners only</span>
     </div>
     <div class="hint" style="margin-bottom:10px;max-width:720px;line-height:1.6">
-      Describe a feature in plain language. An LLM writes the code, the full test suite has to pass
-      before anything is kept (a broken attempt is discarded automatically, never applied), and a
-      passing change is committed to this app's own git history by itself, no one reviews the diff first.
-      New endpoints appear under <code>/api/agent_features/…</code> after you restart the server.
-      Needs an <a href="#" onclick="$('#aiSettings').click();return false">engineering-loop model connected</a> first.
+      Describe a feature in plain language. An LLM writes the code and the full test suite has to
+      pass before anything is kept (a broken attempt is discarded automatically). A passing attempt
+      is <b>staged for review</b>, not applied - it only goes live once an owner previews it and
+      explicitly promotes it (then a server restart activates it under
+      <code>/api/agent_features/…</code>). Needs an
+      <a href="#" onclick="$('#aiSettings').click();return false">engineering-loop model connected</a> first.
     </div>
-    <div id="engFeaturesList" style="margin-bottom:12px"></div>
+    <div id="engLiveList" style="margin-bottom:10px"></div>
+    <div id="engPendingList" style="margin-bottom:12px"></div>
     <form id="engForm" style="display:flex;flex-direction:column;gap:8px">
       <textarea class="input" id="engInstruction" rows="2" placeholder="e.g. Add an endpoint that lists studios below their revenue target this month" required></textarea>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -2303,14 +2305,7 @@ async function renderEngineeringLoop(c) {
     <div id="engResult" style="margin-top:10px;display:none"></div>`;
   c.append(box);
 
-  try {
-    const health = await api('/api/health');
-    const list = box.querySelector('#engFeaturesList');
-    const mounted = health.agent_features_mounted || [];
-    list.innerHTML = mounted.length
-      ? `<div class="hint">Already built: ${mounted.map(m => `<code>${m}</code>`).join(', ')}</div>`
-      : `<div class="hint">Nothing built yet. Try the form below.</div>`;
-  } catch { /* health check is best-effort here */ }
+  await refreshEngineeringLists(box);
 
   box.querySelector('#engForm').onsubmit = async e => {
     e.preventDefault();
@@ -2329,9 +2324,10 @@ async function renderEngineeringLoop(c) {
       resultEl.style.display = '';
       if (r.status === 403) {
         resultEl.innerHTML = `<div class="status-line err"><span class="status-dot"></span>Owner role required. Ask whoever set this app up, or run <code>bin/create_owner.py</code> locally.</div>`;
-      } else if (data.ok) {
-        resultEl.innerHTML = `<div class="status-line ok"><span class="status-dot"></span>Applied and committed (${data.commit}). <b>Restart the server</b> to activate <code>/api/agent_features/...</code>.</div>`;
+      } else if (data.ok && data.staged) {
+        resultEl.innerHTML = `<div class="status-line ok"><span class="status-dot"></span>Tests passed - staged for review (${data.proposal.commit}). See "Pending review" below to try it and promote or reject.</div>`;
         box.querySelector('#engInstruction').value = ''; box.querySelector('#engFilename').value = '';
+        await refreshEngineeringLists(box);
       } else {
         resultEl.innerHTML = `<div class="status-line err"><span class="status-dot"></span>${(data.error || 'Failed').replace(/</g, '&lt;')}</div>
           ${data.test_output ? `<pre style="max-height:160px;overflow:auto;font-size:11px;margin-top:6px;padding:8px;background:var(--surface-2);border-radius:6px">${data.test_output.slice(-800).replace(/</g, '&lt;')}</pre>` : ''}`;
@@ -2340,6 +2336,128 @@ async function renderEngineeringLoop(c) {
       resultEl.style.display = ''; resultEl.innerHTML = `<div class="status-line err"><span class="status-dot"></span>Request failed.</div>`;
     }
     btn.disabled = false; btn.innerHTML = '<svg><use href="#i-check"/></svg> Build it';
+  };
+}
+
+async function refreshEngineeringLists(box) {
+  try {
+    const health = await api('/api/health');
+    const mounted = health.agent_features_mounted || [];
+    box.querySelector('#engLiveList').innerHTML = mounted.length
+      ? `<div class="hint">Live now: ${mounted.map(m => `<code>${m}</code>`).join(', ')}</div>`
+      : `<div class="hint">Nothing promoted yet.</div>`;
+  } catch { /* health check is best-effort here */ }
+
+  const listEl = box.querySelector('#engPendingList');
+  let proposals = [];
+  try {
+    const d = await api('/api/agents/engineer/staged?status=pending');
+    proposals = d.proposals || [];
+  } catch { listEl.innerHTML = ''; return; }
+
+  if (!proposals.length) { listEl.innerHTML = ''; return; }
+  listEl.innerHTML = `<div style="font-weight:600;font-size:12px;margin:4px 0 6px">⏳ Pending review (${proposals.length})</div>`
+    + proposals.map(renderProposalCardHtml).join('');
+  proposals.forEach(p => wireProposalCard(box, p));
+}
+
+function renderProposalCardHtml(p) {
+  const endpointGuess = `/api/agent_features/${p.filename.replace(/\.py$/, '')}`;
+  return `
+  <div class="card card-dense" data-proposal="${p.id}" style="margin-bottom:8px">
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
+      <div><code>${p.filename}</code> <span class="hint">by ${p.requested_by} · ${p.commit} · ${timeAgo(p.created_at)}</span></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn small" data-act="try">Try it</button>
+        <button class="btn small" data-act="reject">Reject</button>
+        <button class="btn small primary" data-act="promote">Promote</button>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:4px">${(p.instruction || '').replace(/</g, '&lt;')}</div>
+    <details style="margin-top:6px"><summary class="hint" style="cursor:pointer">test output</summary>
+      <pre style="max-height:160px;overflow:auto;font-size:11px;margin-top:6px;padding:8px;background:var(--surface-2);border-radius:6px">${(p.test_output || '').replace(/</g, '&lt;')}</pre>
+    </details>
+    <div data-role="preview-area" style="display:none;margin-top:8px;padding:8px;background:var(--surface-2);border-radius:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <select data-role="method" class="input" style="width:90px">
+          <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option>
+        </select>
+        <input data-role="path" class="input" style="flex:1;min-width:200px" value="${endpointGuess}">
+        <button class="btn small" data-act="send">Send</button>
+      </div>
+      <pre data-role="preview-result" style="max-height:200px;overflow:auto;font-size:11px;margin-top:6px;padding:8px;background:var(--surface-1);border-radius:6px;white-space:pre-wrap"></pre>
+    </div>
+    <div data-role="promote-area" style="display:none;margin-top:8px;padding:8px;background:var(--surface-2);border-radius:6px">
+      <div class="hint">Type the exact filename to confirm promotion:</div>
+      <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+        <input data-role="confirm" class="input" placeholder="${p.filename}" style="flex:1;min-width:160px">
+        <select data-role="scope" class="input" style="width:130px">
+          <option value="org">this org only</option>
+          <option value="global">all orgs</option>
+        </select>
+        <button class="btn small primary" data-act="confirm-promote">Confirm promote</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function wireProposalCard(box, p) {
+  const el = box.querySelector(`[data-proposal="${p.id}"]`);
+  if (!el) return;
+
+  el.querySelector('[data-act="try"]').onclick = () => {
+    const area = el.querySelector('[data-role="preview-area"]');
+    area.style.display = area.style.display === 'none' ? '' : 'none';
+  };
+
+  el.querySelector('[data-act="send"]').onclick = async () => {
+    const method = el.querySelector('[data-role="method"]').value;
+    const path = el.querySelector('[data-role="path"]').value.trim();
+    const out = el.querySelector('[data-role="preview-result"]');
+    out.textContent = 'Sending…';
+    try {
+      const r = await fetch(`/api/agents/engineer/staged/${p.id}/preview`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ method, path }),
+      });
+      out.textContent = JSON.stringify(await r.json(), null, 2);
+    } catch {
+      out.textContent = 'Request failed.';
+    }
+  };
+
+  el.querySelector('[data-act="reject"]').onclick = async () => {
+    if (!confirm(`Reject ${p.filename}? The attempt is discarded (kept on a git branch for audit).`)) return;
+    await fetch(`/api/agents/engineer/staged/${p.id}/reject`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}),
+    });
+    toast(`Rejected ${p.filename}`);
+    await refreshEngineeringLists(box);
+  };
+
+  el.querySelector('[data-act="promote"]').onclick = () => {
+    const area = el.querySelector('[data-role="promote-area"]');
+    area.style.display = area.style.display === 'none' ? '' : 'none';
+  };
+
+  el.querySelector('[data-act="confirm-promote"]').onclick = async () => {
+    const confirmVal = el.querySelector('[data-role="confirm"]').value.trim();
+    const scope = el.querySelector('[data-role="scope"]').value;
+    try {
+      const r = await fetch(`/api/agents/engineer/staged/${p.id}/promote`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ confirm: confirmVal, scope }),
+      });
+      const data = await r.json();
+      if (r.ok && data.ok !== false) {
+        toast(`Promoted ${p.filename} (${data.commit}). Restart the server to activate it.`);
+        await refreshEngineeringLists(box);
+      } else {
+        toast(data.error || 'Promotion failed');
+      }
+    } catch {
+      toast('Request failed.');
+    }
   };
 }
 
