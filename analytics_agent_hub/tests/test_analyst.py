@@ -1,4 +1,4 @@
-"""The deterministic NLQ engine is the centerpiece — these lock its behavior
+"""The deterministic NLQ engine is the centerpiece; these lock its behavior
 on the canonical questions (bilingual) so a refactor can't silently break it.
 """
 from app import analyst

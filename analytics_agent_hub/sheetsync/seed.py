@@ -1,4 +1,4 @@
-"""Generate emulated 'studio sheets' as messy CSVs — the zero-setup source.
+"""Generate emulated 'studio sheets' as messy CSVs, the zero-setup source.
 
 Deliberately injects the real-world problems Sheet Sync exists to catch:
   - per-studio header drift (3 variants incl. Indonesian)

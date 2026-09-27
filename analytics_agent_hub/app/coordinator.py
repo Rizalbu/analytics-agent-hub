@@ -1,8 +1,8 @@
-"""AI Coordinator — fan-out multi-agent routing engine.
+"""AI Coordinator: fan-out multi-agent routing engine.
 
 Receives a user query, scores it against every agent in `agents.ROSTER`,
 selects the top-N (max 3) most relevant agents, dispatches to each
-individually, then synthesises a unified response.  All deterministic —
+individually, then synthesises a unified response. All deterministic,
 no LLM dependency for routing decisions.
 """
 from __future__ import annotations
@@ -124,7 +124,7 @@ def _score_query(query: str) -> list[tuple[str, int]]:
 
 def _agent_summary(agent_id: str) -> str:
     a = agents.BY_ID.get(agent_id, {})
-    return f"**{a.get('role', agent_id)}** — {a.get('expertise', '')}"
+    return f"**{a.get('role', agent_id)}**: {a.get('expertise', '')}"
 
 
 def route(question: str, max_agents: int = 3) -> dict[str, Any]:
@@ -190,7 +190,7 @@ def route(question: str, max_agents: int = 3) -> dict[str, Any]:
     roles = ", ".join(c["role"] for c in contributions)
     agents._log(
         "coordinate",
-        f"Orchestrator dispatched to {len(contributions)} agent(s): {roles} — {question[:80]}",
+        f"Orchestrator dispatched to {len(contributions)} agent(s): {roles}, re: {question[:80]}",
     )
 
     result: dict[str, Any] = {
@@ -231,24 +231,24 @@ def _templated_response(agent_id: str, question: str) -> str:
                f"and low-fidelity prototypes to validate the interaction model.",
         "uid": f"As a UI Designer, I'd approach '{question}' with visual hierarchy, design tokens, "
                f"and polished component specs aligned to our design system.",
-        "gm": f"As a Growth Manager, I'd run experiments around '{question}' — A/B tests, funnel "
+        "gm": f"As a Growth Manager, I'd run experiments around '{question}': A/B tests, funnel "
               f"analysis, and retention cohorts to find the lever.",
         "de": f"As a Data Engineer, I'd build reliable, idempotent pipelines to answer '{question}' "
               f"with tested data contracts and observable freshness.",
-        "ae": f"As an Analytics Engineer, I'd model the data cleanly around '{question}' — "
+        "ae": f"As an Analytics Engineer, I'd model the data cleanly around '{question}': "
               f"dimensional marts, clear metrics, and documented lineage.",
         "ml": f"As an ML Engineer, I'd build a feature set, train a model with proper evaluation, "
               f"and monitor drift to answer '{question}' quantitatively.",
         "mkt": f"As a Marketing Strategist, I'd sharpen positioning and plan a GTM that addresses "
                f"'{question}' with channel-level tactics.",
-        "cont": f"As a Content Strategist, I'd build a narrative engine around '{question}' — "
+        "cont": f"As a Content Strategist, I'd build a narrative engine around '{question}': "
                 f"editorial calendar, SEO research, and messaging architecture.",
         "csm": f"As a Customer Success lead, I'd look at onboarding health, engagement scores, "
                f"and QBR insights to answer '{question}'.",
         "ops": f"As an Operations Manager, I'd analyse process capacity, SLAs, and resource "
                f"allocation to address '{question}'.",
         "uxr": f"As a UX Researcher, I'd design a study to uncover user needs around "
-               f"'{question}' — interviews, usability tests, and synthesis.",
+               f"'{question}': interviews, usability tests, and synthesis.",
     }
     return templates.get(agent_id,
                          f"As a {role} specialising in {expertise}, I can contribute to "

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "=== Growth Analytics Platform — Startup ==="
+echo "=== Growth Analytics Platform: Startup ==="
 
 # ── 1. Sheet Sync: seed & run ────────────────────────────────
 # Only seed if sheets don't exist yet (persist across restarts)

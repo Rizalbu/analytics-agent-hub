@@ -35,5 +35,5 @@ schema sidebar + results grid + CSV export, integrated with the AI Analyst
 - `sqlglot` added as a dependency (lightweight, parse-only).
 - Guardrails are validated by a self-check; the read-only connection is the
   final backstop if a validator gap is ever found.
-- Limitation: no query history/saved queries yet — add a small table if users
+- Limitation: no query history/saved queries yet; add a small table if users
   ask.

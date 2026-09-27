@@ -7,7 +7,7 @@ queries.py, and returns a structured answer: prose with real numbers, an
 ECharts spec, an optional table, and the provenance (which query produced it).
 
 Tier 2 (optional): if an OpenAI-compatible LLM is configured, it rewrites the
-tier-1 facts into fluent narrative and handles fuzzier multi-part questions —
+tier-1 facts into fluent narrative and handles fuzzier multi-part questions,
 but every number still originates from a tier-1 tool call ("no naked numbers").
 
 Design goal: the chat feels intelligent and trustworthy even with zero cloud

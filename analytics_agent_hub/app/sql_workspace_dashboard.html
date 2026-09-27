@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SQL Workspace — Defense in Depth Dashboard</title>
+<title>SQL Workspace: Defense in Depth Dashboard</title>
 <style>
   :root {
     --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
@@ -164,7 +164,7 @@
 
   <!-- HEADER -->
   <div class="header">
-    <h1>🛡️ SQL Workspace — Defense in Depth</h1>
+    <h1>🛡️ SQL Workspace: Defense in Depth</h1>
     <p>
       Validasi → Guard → Eksekusi &nbsp;·&nbsp; DuckDB Read-Only Warehouse
       &nbsp;·&nbsp; <span class="badge badge-green">SELECT ONLY</span>
@@ -185,7 +185,7 @@
   <!-- 3 LAYERS -->
   <div class="grid-3">
     <div class="card">
-      <div class="card-title"><span class="icon">🔍</span> Layer 1 — Parse & Validasi</div>
+      <div class="card-title"><span class="icon">🔍</span> Layer 1: Parse & Validasi</div>
       <div class="code-block" style="margin-bottom:10px">
         <span class="comment"># sqlglot parse → hanya SELECT/WITH</span><br>
         expr = sqlglot.parse_one(q, <span class="string">"duckdb"</span>)<br>
@@ -201,7 +201,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title"><span class="icon">⛔</span> Layer 2 — Regex Guard</div>
+      <div class="card-title"><span class="icon">⛔</span> Layer 2: Regex Guard</div>
       <div class="code-block" style="margin-bottom:10px">
         <span class="comment"># Blokir fungsi baca file lokal</span><br>
         _FORBIDDEN_FUNC = <span class="fn">re.compile</span>(<span class="string">r"\b(read_csv|read_parquet|...)"</span>)<br><br>
@@ -217,7 +217,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title"><span class="icon">🔒</span> Layer 3 — Eksekusi Aman</div>
+      <div class="card-title"><span class="icon">🔒</span> Layer 3: Eksekusi Aman</div>
       <div class="code-block" style="margin-bottom:10px">
         <span class="comment"># Bungkus dengan LIMIT + timeout thread</span><br>
         wrapped = <span class="string">f"SELECT * FROM ({q}) AS _sub LIMIT {ROW_CAP}"</span><br>
@@ -486,7 +486,7 @@ function testQuery() {
 
   if (errors.length === 0) {
     res.className = 'query-result show pass';
-    res.textContent = '✅ LOLOS VALIDASI — Query aman untuk dieksekusi!';
+    res.textContent = '✅ LOLOS VALIDASI: Query aman untuk dieksekusi!';
     steps.forEach(id => {
       const el = document.getElementById(id);
       el.className = 'flow-step pass';

@@ -7,8 +7,8 @@ Two wire formats behind one streaming interface:
       POST {base}/v1/messages        · SSE content_block_delta.delta.text
       headers x-api-key + anthropic-version; NO temperature on Opus 4.x
 
-Raw HTTP (httpx) is used for BOTH so the router stays uniform and transparent
-— DeepSeek has no Anthropic SDK, and keeping one mechanism makes the provider
+Raw HTTP (httpx) is used for BOTH so the router stays uniform and transparent.
+DeepSeek has no Anthropic SDK, and keeping one mechanism makes the provider
 abstraction easy to read. Either provider only ever sees the tier-1 FACTS
 (headline + table), never the warehouse: the model narrates, never computes.
 

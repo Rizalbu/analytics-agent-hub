@@ -10,7 +10,7 @@ __pycache__/
 .env.local
 .env.*
 
-# Data — auto-generated
+# Data: auto-generated
 data/sheets/
 data/sync.duckdb
 data/agent.duckdb

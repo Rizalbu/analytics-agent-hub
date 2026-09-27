@@ -1,4 +1,4 @@
-"""Sheet Sync — governed spreadsheet→warehouse ingestion.
+"""Sheet Sync: governed spreadsheet→warehouse ingestion.
 
 Reimplements (clean, anonymized) the pattern of treating Google Sheets as an
 ops UI while keeping warehouse-grade trust: per-sheet contracts, header-drift

@@ -1,4 +1,4 @@
-# AI Studio — design blueprint
+# AI Studio: design blueprint
 
 The **AI Agents** page shipped in Lumen is the working first slice of a larger
 vision: an AI-native workspace where people collaborate with specialized agents.

@@ -15,7 +15,7 @@ a statistical anomaly scanner, a global member-flow map, a governed data-sync
 layer, dbt lineage + data-quality, a live **read-only SQL workspace**, and an
 **AI Agents workspace** with an Orchestrator that routes work across 18
 specialized agents. The **AI Analyst** answers in Indonesian or English with
-real numbers, charts, and the SQL behind them — **no API key required**, with
+real numbers, charts, and the SQL behind them, **no API key required**, with
 one-click upgrade to DeepSeek or Claude.
 
 **Demo login:** `try` / `tryon`.
@@ -28,7 +28,7 @@ one-click upgrade to DeepSeek or Claude.
 
 ## Why it's interesting
 
-- **AI Analyst that works with no key — upgrades to a real LLM in one click.**
+- **AI Analyst that works with no key, upgrades to a real LLM in one click.**
   A deterministic natural-language-to-SQL engine parses intent (metric ×
   dimension × period × comparison) from bilingual text, runs *parameterized,
   mart-only* queries, and returns prose + an ECharts chart + the query
@@ -38,9 +38,9 @@ one-click upgrade to DeepSeek or Claude.
 - **AI Agents workspace.** 18 role agents + an **Orchestrator** that scores a
   request against the roster, fans out to the top-N (max 3), and synthesises a
   unified answer. Actions: chat, assign task, create deliverable, review work,
-  collaborate — persisted in a DuckDB state store.
+  collaborate, persisted in a DuckDB state store.
 - **Live SQL Workspace.** Write `SELECT` against the warehouse with a schema
-  browser, results grid, and CSV export — guarded read-only (SELECT-only,
+  browser, results grid, and CSV export, guarded read-only (SELECT-only,
   file-function blocklist, row cap, statement timeout).
 - **Member Origins map.** ECharts world map with animated origin→hub flow
   lines + member bubbles, from a self-made geo dataset (real city lat/lng →
@@ -89,7 +89,7 @@ provider → paste key → *Test & connect*:
 | **Claude** | Anthropic `/v1/messages` | `claude-opus-4-8` |
 | **OpenAI-compat** | OpenAI / OpenRouter / Groq / Ollama | `gpt-4o-mini` |
 
-Key stays in server memory for the session — never sent to the browser, never
+Key stays in server memory for the session, never sent to the browser, never
 committed. Can also preset via `.env` (see `.env.example`).
 
 ## Pages
@@ -148,12 +148,12 @@ Browser SPA (web/) ──fetch (Bearer auth)──▶ FastAPI (app/)
 
 ## Docs
 
-- [ADR-001 — Two-tier AI Analyst (deterministic-first)](docs/adr/001-two-tier-analyst.md)
-- [ADR-002 — Sheet-sync contracts](docs/adr/002-sheetsync-contracts.md)
-- [ADR-003 — Auth & rate limiting](docs/adr/003-auth-rate-limit.md)
-- [ADR-004 — SSE streaming](docs/adr/004-sse-streaming.md)
-- [ADR-005 — AI Coordinator (fan-out routing)](docs/adr/005-ai-coordinator.md)
-- [ADR-006 — SQL Workspace guardrails](docs/adr/006-sql-workspace.md)
+- [ADR-001: Two-tier AI Analyst (deterministic-first)](docs/adr/001-two-tier-analyst.md)
+- [ADR-002: Sheet-sync contracts](docs/adr/002-sheetsync-contracts.md)
+- [ADR-003: Auth & rate limiting](docs/adr/003-auth-rate-limit.md)
+- [ADR-004: SSE streaming](docs/adr/004-sse-streaming.md)
+- [ADR-005: AI Coordinator (fan-out routing)](docs/adr/005-ai-coordinator.md)
+- [ADR-006: SQL Workspace guardrails](docs/adr/006-sql-workspace.md)
 - [AI Studio design blueprint](docs/ai-studio.md) · [LinkedIn kit](docs/linkedin_kit.md)
 
 ## Privacy

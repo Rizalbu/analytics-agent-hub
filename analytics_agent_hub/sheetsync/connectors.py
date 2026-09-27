@@ -1,5 +1,5 @@
 """Source connectors. The demo uses LocalCsvConnector (emulated sheets).
-GoogleSheetsConnector is the drop-in real-world option — same interface, so
+GoogleSheetsConnector is the drop-in real-world option, same interface, so
 engine.py is unchanged when you switch. Requires gspread + a service account
 (set GOOGLE_APPLICATION_CREDENTIALS and HUB_SHEET_IDS); kept optional so the
 demo stays keyless.

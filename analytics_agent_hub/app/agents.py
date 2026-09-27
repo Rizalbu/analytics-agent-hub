@@ -9,7 +9,7 @@ from __future__ import annotations
 
 # category -> agents. metrics are synthetic demo values.
 ROSTER = [
-    # System — Orchestrator (always first)
+    # System: Orchestrator (always first)
     {"id": "orch", "role": "Orchestrator", "cat": "System", "init": "OC",
      "expertise": "multi-agent routing, cross-domain synthesis, fan-out coordination",
      "persona": "a central coordinator who routes requests to the right agents and synthesises their output into a unified answer",
@@ -140,7 +140,7 @@ def persona(agent_id: str) -> str | None:
 
 # ---- DuckDB Persistence --------------------------------------------------
 # All agent state lives in data/agent.duckdb (NOT the read-only warehouse).
-# Survives server restarts — production-grade.
+# Survives server restarts, production-grade.
 import uuid as _uuid
 from datetime import datetime, timedelta
 from typing import Any
@@ -329,7 +329,7 @@ def start_collaboration(lead_id: str, peer_id: str, goal: str) -> dict:
                            [c_id, lead_id, peer_id, goal, now])
     lead = BY_ID.get(lead_id, {})
     peer = BY_ID.get(peer_id, {})
-    _log("collaboration", f"Collaboration: {lead.get('role', lead_id)} + {peer.get('role', peer_id)} — {goal}", lead_id)
+    _log("collaboration", f"Collaboration: {lead.get('role', lead_id)} + {peer.get('role', peer_id)} on {goal}", lead_id)
     return {"id": c_id, "lead": lead_id, "peer": peer_id, "goal": goal, "status": "active", "created": now}
 
 
@@ -352,7 +352,7 @@ def agent_tool_context(agent_id: str, query: str) -> dict:
     """Gather real data context for a given agent based on the user query.
     
     Returns a dict with:
-      - context_text: str — formatted data the agent can reference
+      - context_text: str, formatted data the agent can reference
       - chart: optional ECharts spec
       - table: optional table
     """
@@ -361,7 +361,7 @@ def agent_tool_context(agent_id: str, query: str) -> dict:
     result: dict = {"context_text": "", "chart": None, "table": None}
     
     if agent_id == "da":
-        # Data Analyst — full analyst engine
+        # Data Analyst: full analyst engine
         ans = analyst.answer(query)
         result["context_text"] = ans.get("text", "")
         result["chart"] = ans.get("chart")
@@ -371,7 +371,7 @@ def agent_tool_context(agent_id: str, query: str) -> dict:
         return result
     
     if agent_id == "gm":
-        # Growth Manager — funnel KPIs + channel mix
+        # Growth Manager: funnel KPIs + channel mix
         dims = qmod.dimensions()
         kpis = qmod.kpis({})
         ctx_parts = [f"Total revenue this period: Rp {kpis.get('revenue', 0):,.0f}"]
@@ -386,7 +386,7 @@ def agent_tool_context(agent_id: str, query: str) -> dict:
         return result
     
     if agent_id == "ml":
-        # ML Engineer — forecast + anomalies
+        # ML Engineer: forecast + anomalies
         forecast = insights.forecast_revenue(3)
         anomalies = insights.scan_anomalies()
         ctx_parts = ["Recent anomalies detected:" if anomalies else "No recent anomalies."]
@@ -400,20 +400,20 @@ def agent_tool_context(agent_id: str, query: str) -> dict:
         return result
     
     if agent_id in ("pm", "proj"):
-        # Product / Project Manager — project + task status
+        # Product / Project Manager: project + task status
         projects = list_projects()
         tasks = list_tasks()
         ctx_parts = [f"Active projects: {len(projects)}"]
         for p in projects:
             agents_str = ", ".join(BY_ID.get(a, {}).get("role", a) for a in p.get("agents", []))
-            ctx_parts.append(f"  - {p['name']} ({p['status']}) — {agents_str}")
+            ctx_parts.append(f"  - {p['name']} ({p['status']}): {agents_str}")
         ctx_parts.append(f"Open tasks: {sum(1 for t in tasks if t['status'] == 'open')}")
         ctx_parts.append(f"Completed tasks: {sum(1 for t in tasks if t['status'] == 'done')}")
         result["context_text"] = "\n".join(ctx_parts)
         return result
     
     if agent_id in ("de", "ae"):
-        # Data / Analytics Engineer — data quality + lineage + registered sources
+        # Data / Analytics Engineer: data quality + lineage + registered sources
         from . import quality as ql
         from . import datasources as ds
         qs = ql.build_summary()
@@ -430,7 +430,7 @@ def agent_tool_context(agent_id: str, query: str) -> dict:
         return result
     
     if agent_id == "fs":
-        # Full Stack — app health
+        # Full Stack: app health
         ctx_parts = [
             "Backend: FastAPI with DuckDB warehouse",
             "Frontend: Vanilla JS SPA with ECharts",
@@ -441,7 +441,7 @@ def agent_tool_context(agent_id: str, query: str) -> dict:
         return result
     
     if agent_id == "csm":
-        # Customer Success — member metrics
+        # Customer Success: member metrics
         dims = qmod.dimensions()
         ctx_parts = [f"Cities served: {len(dims.get('cities', []))}"]
         ctx_parts.append(f"Studios: {len(dims.get('studios', []))}")
@@ -449,7 +449,7 @@ def agent_tool_context(agent_id: str, query: str) -> dict:
         result["context_text"] = " | ".join(ctx_parts)
         return result
     if agent_id == "orch":
-        # Orchestrator — team overview + active projects
+        # Orchestrator: team overview + active projects
         con = _agent_db()
         projects = con.execute("SELECT name, status FROM projects ORDER BY status, name").fetchall()
         active_projs = [p[0] for p in projects if p[1] == "active"]
@@ -463,7 +463,7 @@ def agent_tool_context(agent_id: str, query: str) -> dict:
         result["context_text"] = " | ".join(ctx_parts)
         return result
     
-    # Generic fallback — agent's own expertise description
+    # Generic fallback: agent's own expertise description
     a = BY_ID.get(agent_id, {})
     result["context_text"] = f"{a.get('role', agent_id)} specialising in {a.get('expertise', '')}."
     return result
@@ -511,12 +511,12 @@ def _seed():
         ("review", "Review requested: Funnel SQL logic by DA → AE", "da", -72),
         ("project", "Project started: Studio Dashboard v2", "fs", -60),
         ("deliverable", "Conversion rate dashboard submitted for review", "da", -48),
-        ("task", "Design checkout flow — in progress", "uxd", -36),
+        ("task", "Design checkout flow, in progress", "uxd", -36),
         ("task", "Optimize Google Search bids", "gm", -28),
         ("project", "Project started: Member Retention Campaign", "mkt", -18),
         ("collaboration", "DA + GM analysing retention cohorts", "da", -12),
         ("deliverable", "Wireframe critique completed by UI", "uid", -6),
-        ("task", "Implement dark mode — PR opened", "fe", -2),
+        ("task", "Implement dark mode, PR opened", "fe", -2),
     ]
     for kind, msg, agent, mins_ago in activity_seeds:
         ts = (base_ts + timedelta(minutes=mins_ago)).isoformat() + "Z"

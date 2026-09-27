@@ -1,4 +1,4 @@
-# BRIEF — analytics_agent_hub
+# BRIEF: analytics_agent_hub
 
 > Dokumen ini adalah **permintaan produk**, bukan catatan. Kalau ada konflik antara
 > kode yang sudah ada di branch ini dan isi BRIEF ini, **BRIEF yang menang.**
@@ -7,7 +7,7 @@
 ## Kondisi sekarang
 
 `analytics_agent_hub/` (192 baris `app.py` + 45 baris tes + halaman statis 296 baris)
-terlalu tipis untuk disebut "menggabungkan dua konsep". Yang hilang bukan polesan —
+terlalu tipis untuk disebut "menggabungkan dua konsep". Yang hilang bukan polesan:
 mekanisme intinya tidak ada. Lihat bagian *Bug yang harus dibetulkan lebih dulu*
 untuk bukti hasil uji nyata.
 
@@ -15,9 +15,9 @@ untuk bukti hasil uji nyata.
 
 Semua publik, bisa dibaca langsung tanpa login.
 
-### 1. `https://github.com/rizalmachine/growth_analytics_platform` — app yang SUDAH JALAN (~4.006 baris)
+### 1. `https://github.com/rizalmachine/growth_analytics_platform`: app yang SUDAH JALAN (~4.006 baris)
 
-Ini basis fiturnya. **Baca `docs/adr/001..006` sebelum menulis kode apa pun** —
+Ini basis fiturnya. **Baca `docs/adr/001..006` sebelum menulis kode apa pun**,
 di situ alasan desainnya:
 
 | ADR | Isi |
@@ -26,7 +26,7 @@ di situ alasan desainnya:
 | 002 | Sheet-sync contracts |
 | 003 | Auth & rate limiting |
 | 004 | SSE streaming |
-| 005 | AI Coordinator — fan-out routing |
+| 005 | AI Coordinator: fan-out routing |
 | 006 | SQL Workspace guardrails |
 
 File yang menentukan perilaku:
@@ -43,19 +43,19 @@ File yang menentukan perilaku:
 | `app/sql_workspace.py` | 140 | SQL workspace read-only + guardrail |
 | `app/rate_limit.py` | 33 | Rate limiting |
 | `app/funnel_detail.py` | 307 | Funnel multi-tahap + sumber akuisisi |
-| `web/` | — | SPA: SSE streaming, chart di dalam bubble chat, ⌘K palette, tema light/dark |
+| `web/` | n/a | SPA: SSE streaming, chart di dalam bubble chat, ⌘K palette, tema light/dark |
 
 Halaman yang harus ada: Overview · Funnel Explorer · Channels & Spend · Studios ·
 Revenue & Targets · Forecast · Anomalies · Member Origins (peta) · AI Agents ·
 SQL Workspace · Data Sources · Model Lineage · Data Quality · Data Sync · AI Analyst.
 
-### 2. `https://github.com/ahmadrosid/nakama` — lisensi **MIT**, boleh ambil KODE (bukan cuma konsep)
+### 2. `https://github.com/ahmadrosid/nakama`: lisensi **MIT**, boleh ambil KODE (bukan cuma konsep)
 
 Baca `ARCHITECTURE.md`. Yang diambil:
 
 - **org = isolation boundary.** Semua entity org-scoped: profiles, sessions, tools,
   automations, usage.
-- **Org context lewat header `X-Org-Id` + middleware** — bukan API key di query string.
+- **Org context lewat header `X-Org-Id` + middleware**, bukan API key di query string.
 - **auth + CSRF middleware**, roles / invites / members.
 - **Channel worker Telegram / WhatsApp / Discord yang BENAR-BENAR MENGIRIM balasan.**
 - Profile "soul": identitas, instructions, memory; tools, skills, MCP.
@@ -63,7 +63,7 @@ Baca `ARCHITECTURE.md`. Yang diambil:
 ## Fitur yang diminta di `analytics_agent_hub`
 
 1. **Routing** = fan-out top-N + sintesis seperti `coordinator.py`, dengan threshold
-   dan penanganan skor seri yang eksplisit — **bukan** "yang pertama di daftar menang".
+   dan penanganan skor seri yang eksplisit, **bukan** "yang pertama di daftar menang".
    Setiap agen yang menjawab harus menjawab dengan **data nyata**, bukan teks template.
 2. **Multi-tenancy persisten**: org disimpan di DB, **API key di-hash**, org context
    via header `X-Org-Id`. Tiap org punya data slice sendiri. Tidak boleh hilang saat
@@ -77,8 +77,8 @@ Baca `ARCHITECTURE.md`. Yang diambil:
 
 ## Bug yang harus dibetulkan lebih dulu (hasil uji nyata, bukan dugaan)
 
-1. **App gagal boot di clone bersih.** Folder `data/` tidak dibuat oleh aplikasi —
-   hanya di dalam `tests/test_app.py` — sementara `.gitignore` mengecualikan
+1. **App gagal boot di clone bersih.** Folder `data/` tidak dibuat oleh aplikasi,
+   hanya di dalam `tests/test_app.py`, sementara `.gitignore` mengecualikan
    `analytics_agent_hub/data/`, jadi folder itu tidak pernah ada di git.
    ```
    folder data/ ada? False
@@ -97,7 +97,7 @@ Baca `ARCHITECTURE.md`. Yang diambil:
 3. **Webhook tanpa verifikasi apa pun.** Tidak ada cek
    `X-Telegram-Bot-Api-Secret-Token`, dan key malah ada di **path URL**
    (`/webhooks/telegram/{api_key}`). Payload bukan-Telegram dibalas
-   `200 {"ok": true}` — gagal senyap. Dan **tidak ada pengiriman balasan keluar**:
+   `200 {"ok": true}`, gagal senyap. Dan **tidak ada pengiriman balasan keluar**:
    balasan hanya jadi HTTP body, tidak pernah sampai ke chat.
 
 4. **Tenancy in-memory.** `ORGS` itu `dict` biasa:
@@ -106,7 +106,7 @@ Baca `ARCHITECTURE.md`. Yang diambil:
 
 5. **Tidak ada rate limit.** 60 request beruntun ke `/api/ask` → semuanya `200`.
 
-6. **KPI tidak bermakna.** `leads=200 customers=74 conversion=0.370` — `leads`
+6. **KPI tidak bermakna.** `leads=200 customers=74 conversion=0.370`: `leads`
    dihitung `count(*)` **semua** baris, termasuk yang sudah jadi customer. Tidak ada
    tahap funnel berurutan. Data sintetis `random.choice` tanpa seed → tidak reproducible,
    padahal halaman demo mengklaim "grounded in the warehouse".
@@ -127,7 +127,7 @@ Baca `ARCHITECTURE.md`. Yang diambil:
 ## Aturan kerja
 
 1. **Bukti, bukan klaim.** Setiap "selesai" harus disertai perintah yang dijalankan + output.
-   Tes harus lulus dari **clone bersih** — bukan dari direktori kerja yang sudah siap.
+   Tes harus lulus dari **clone bersih**, bukan dari direktori kerja yang sudah siap.
 2. **Jangan duplikasi logika** antara backend dan halaman demo. Halaman demo memanggil API.
 3. **Tulis tes untuk jalur gagal**, bukan hanya happy path: key salah (`401`), header
    vs query (`422`), isolasi antar-org (org A tidak bisa baca data org B), restart

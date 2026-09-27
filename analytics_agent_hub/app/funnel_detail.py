@@ -4,7 +4,7 @@ Extends the warehouse's 5-stage funnel (lead->qualified->booked->visited->purcha
 with realistic upstream (impression, click) and downstream (retained, churned)
 stages plus nurture/evaluate mid-funnel, broken out by 11 acquisition sources across 6 channel groups.
 
-All numbers are synthetic — generated from the warehouse aggregate as a seed value
+All numbers are synthetic, generated from the warehouse aggregate as a seed value
 and then distributed across sources using realistic conversion-curve parameters.
 """
 from __future__ import annotations

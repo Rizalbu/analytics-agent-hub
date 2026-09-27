@@ -30,7 +30,7 @@ def main() -> None:
         print("re-seeded without S07 drift")
     if args.simulate_delete:
         # drop the 2nd data row (a unique day) so a logical record truly
-        # disappears — the engine should flag it as a deletion
+        # disappears: the engine should flag it as a deletion
         f = sheets / "S01.csv"
         rows = list(csv.reader(open(f, encoding="utf-8")))
         if len(rows) > 3:

@@ -13,18 +13,18 @@ all, it can hallucinate numbers, and a reviewer can't see *how* it works.
 
 Two tiers, with the LLM strictly optional.
 
-**Tier 1 — deterministic NLQ engine (`analyst.py`).** Parse an intent
+**Tier 1: deterministic NLQ engine (`analyst.py`).** Parse an intent
 (metric × dimension × period × comparison × intent-type) from bilingual text
 using vocabulary maps, then dispatch to a handler that calls the *same*
 `queries.py` functions the dashboard uses. Output is a structured answer:
 prose with real numbers, an ECharts spec, an optional table, follow-up chips,
 and a provenance string. This works with **no API key** and is fully testable.
 
-**Tier 2 — LLM narration (`llm.py`), optional.** If `LLM_API_KEY` is set, the
+**Tier 2: LLM narration (`llm.py`), optional.** If `LLM_API_KEY` is set, the
 deterministic answer object is handed to an OpenAI-compatible model that
 rephrases it fluently and streams over SSE. The model is shown the **facts**
 (headline + table), never the raw warehouse, and is instructed to use only the
-numbers given — "no naked numbers". If the call fails, we fall back to the
+numbers given, "no naked numbers". If the call fails, we fall back to the
 tier-1 text.
 
 ## Consequences
@@ -36,7 +36,7 @@ tier-1 text.
 - Bilingual support (ID/EN) is just vocabulary lists, easy to extend.
 - Limitation: tier-1 covers the canonical question shapes (metric lookups,
   breakdowns, why/anomaly, miss-target, forecast). Truly open-ended questions
-  fall back to guided suggestions rather than guessing — a deliberate honesty
+  fall back to guided suggestions rather than guessing, a deliberate honesty
   choice. Tier 2 widens the phrasing it can handle, not the data it can touch.
 
 ## Security note

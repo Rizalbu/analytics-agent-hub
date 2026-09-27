@@ -22,7 +22,7 @@ HUBS = [
     {"id": "CRL", "name": "Crestline",   "lat": 1.35,  "lng": 103.82, "region": "Asia-Pacific"},
 ]
 
-# (name, lat, lng, nearest hub) — real coords, synthetic membership
+# (name, lat, lng, nearest hub): real coords, synthetic membership
 ORIGINS = [
     ("Toronto", 43.65, -79.38, "ARD"), ("Chicago", 41.88, -87.63, "ARD"),
     ("Los Angeles", 34.05, -118.24, "ARD"), ("Mexico City", 19.43, -99.13, "ARD"),

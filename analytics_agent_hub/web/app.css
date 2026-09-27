@@ -1,9 +1,9 @@
-/* Growth Command Hub — design system
+/* Growth Command Hub: design system
    Dark "command center" aesthetic (Linear/Vercel/Retool lineage).
    Semantic tokens only; tabular figures for all data; 4/8px rhythm. */
 
 :root {
-  /* ===== Dark — VS Code / Claude Code Inspired ===== */
+  /* ===== Dark: VS Code / Claude Code Inspired ===== */
   --bg: #1e1e1e;
   --bg-grad-1: #1e1e1e;
   --bg-grad-2: #181818;
@@ -29,7 +29,7 @@
   --bad-dim: rgba(244, 71, 71, 0.15);
   --info: #9cdcfe;
 
-  /* chart series — clean, professional */
+  /* chart series: clean, professional */
   --c1: #4da6ff; --c2: #4ec9b0; --c3: #dcdcaa; --c4: #f44747;
   --c5: #9cdcfe; --c6: #c586c0; --c7: #ce9178;
 
@@ -47,7 +47,7 @@
   --ease: cubic-bezier(.22,.61,.36,1);
 }
 
-/* ---- Light — Warm & Harmonious ---- */
+/* ---- Light: Warm & Harmonious ---- */
 [data-theme="light"] {
   --bg: #f5f0e8;
   --bg-grad-1: #efe9de;
@@ -538,7 +538,7 @@ input[type=checkbox] { accent-color: var(--accent); }
 .agent-card:hover { border-color: var(--border-strong); background: var(--surface-2); }
 .kpi:hover { border-color: var(--border-strong); }
 
-/* ---- SQL Workspace — IDE-grade ---- */
+/* ---- SQL Workspace: IDE-grade ---- */
 .sql-workspace { display: grid; grid-template-columns: 260px 1fr; gap: 0; height: calc(100vh - 120px); min-height: 480px; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .sql-workspace.collapsed { grid-template-columns: 0 1fr; }
 

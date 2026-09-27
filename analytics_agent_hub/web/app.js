@@ -1120,7 +1120,7 @@ PAGES.revenue = async (c) => {
   const row2 = el('div', 'grid cols-2'); row2.style.marginTop = 'var(--s4)';
   const att = chartCard('Revenue Attainment by City', 'vs target', 'short');
   row2.append(att.card);
-  // Revenue by Plan donut — fill empty column
+  // Revenue by Plan donut: fill empty column
   const planCard = chartCard('Revenue by Plan Mix', 'latest month distribution', 'short');
   row2.append(planCard.card);
   c.append(row2);
@@ -1492,7 +1492,7 @@ function renderSheets(c, d) {
   c.append(log);
 }
 
-// ---------- SQL Workspace — IDE-grade ----------
+// ---------- SQL Workspace: IDE-grade ----------
 const _SQL_DEFAULT = `-- Explore your warehouse data
 -- Ctrl+Enter to run · Click schema tables to insert names
 select s.city,
@@ -2122,7 +2122,7 @@ PAGES.geoflows = async (c) => {
   const ok = await ensureWorldMap();
   if (!ok) {
     mapCard.append(el('div', 'empty', 'World map unavailable (offline?). Flows hidden, charts below still active.'));
-    // don't return — let charts below render
+    // don't return, let charts below render
   } else {
 
   const flows = d.flows.map(f => ({ coords: [f.from, f.to], value: f.value, hub: f.hub }));
@@ -2171,7 +2171,7 @@ PAGES.geoflows = async (c) => {
   // Chart 3: Hub member share (pie)
   const hubPie = chartCard('Hub Member Share', '% of total');
   chartRow.append(hubPie.card);
-  // MUST append to DOM before echarts.init() — it needs layout dimensions
+  // MUST append to DOM before echarts.init(): it needs layout dimensions
   c.append(chartRow);
 
   const contSorted = Object.entries(byContinent).sort((a, b) => b[1] - a[1]);
@@ -2533,7 +2533,7 @@ function showProjectForm(a) {
 
 function showDeliverableForm(a) {
   const types = ['Code', 'Dashboard', 'Design', 'Documentation', 'Report', 'Test Suite'];
-  const m = showOverlay(`Create Deliverable — ${a.role}`, `
+  const m = showOverlay(`Create Deliverable: ${a.role}`, `
     <div class="field"><label>Title</label><input id="delTitle" class="inp" placeholder="e.g. Conversion dashboard v2" autofocus></div>
     <div class="field"><label>Type</label><select id="delType" class="inp">${types.map(t => `<option>${t}</option>`).join('')}</select></div>
     <div class="field"><label>Project (optional)</label><select id="delProj" class="inp"><option value="">— None —</option></select></div>
@@ -2558,7 +2558,7 @@ function showDeliverableForm(a) {
 }
 
 function showReviewPanel(a) {
-  const m = showOverlay(`Review Queue — ${a.role}`, '<div id="reviewBody" style="min-height:100px"><div class="loading">Loading reviews…</div></div>');
+  const m = showOverlay(`Review Queue: ${a.role}`, '<div id="reviewBody" style="min-height:100px"><div class="loading">Loading reviews…</div></div>');
   const body = m.querySelector('#reviewBody');
   fetch('/api/agents/reviews?agent_id=' + a.id).then(r => r.json()).then(d => {
     if (!d.reviews || !d.reviews.length) {
@@ -2611,7 +2611,7 @@ async function approveReview(rvId, action, comment, body, a) {
 function showCollabForm(a) {
   fetch('/api/agents').then(r => r.json()).then(d => {
     const peers = d.agents.filter(x => x.id !== a.id);
-    const m = showOverlay(`Collaborate — ${a.role}`, `
+    const m = showOverlay(`Collaborate: ${a.role}`, `
       <div class="field"><label>With</label>
         <select id="collabPeer" class="inp">
           ${peers.map(p => `<option value="${p.id}">${p.role}</option>`).join('')}
@@ -2685,7 +2685,7 @@ function startAgentChat(a) {
         <div class="agent-avatar" id="achatAvatar">DA<span class="agent-dot"></span></div>
         <div class="agent-chat-head-info">
           <div class="name" id="achatName">Data Analyst</div>
-          <div class="sub" id="achatSub">Ask anything — answers grounded in real data</div>
+          <div class="sub" id="achatSub">Ask anything, answers grounded in real data</div>
         </div>
         <button class="agent-chat-close" id="achatClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
       </div>
@@ -2727,7 +2727,7 @@ function startAgentChat(a) {
   const body = modal.querySelector('#achatBody');
   if (!body.children.length) {
     const b = addAgentMsg('bot', modal);
-    b.innerHTML = mdInline(`Hi! I'm your **${a.role}**. I focus on ${a.expertise}. Ask me anything — I'll ground answers in your real data.`);
+    b.innerHTML = mdInline(`Hi! I'm your **${a.role}**. I focus on ${a.expertise}. Ask me anything, I'll ground answers in your real data.`);
     const chips = el('div', 'chips');
     const fps = agentFollowups(a.id);
     fps.forEach(f => { const ch = el('div', 'chip', f); ch.onclick = () => { ta.value = f; modal.querySelector('#achatForm').requestSubmit(); }; chips.append(ch); });
@@ -2811,7 +2811,7 @@ async function sendAgentChat(a, q) {
     }
   } catch {
     typing.closest('.msg')?.remove();
-    addAgentMsg('bot', modal).textContent = 'Connection error — try again.';
+    addAgentMsg('bot', modal).textContent = 'Connection error. Try again.';
   }
 }
 
