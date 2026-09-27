@@ -413,12 +413,19 @@ def agent_tool_context(agent_id: str, query: str) -> dict:
         return result
     
     if agent_id in ("de", "ae"):
-        # Data / Analytics Engineer — data quality + lineage
+        # Data / Analytics Engineer — data quality + lineage + registered sources
         from . import quality as ql
+        from . import datasources as ds
         qs = ql.build_summary()
-        ctx_parts = [f"Data quality score: {qs.get('score', 0)}%"]
-        ctx_parts.append(f"Tests passing: {qs.get('passing', 0)}/{qs.get('total', 0)}")
-        ctx_parts.append(f"Tables tracked: {qs.get('tables', 0)}")
+        ctx_parts = [f"Data quality score: {qs.get('pass_rate', 0)}%"]
+        ctx_parts.append(f"Tests passing: {qs.get('tests_passed', 0)}/{qs.get('tests_total', 0)}")
+        ctx_parts.append(f"Models built: {qs.get('models_built', 0)}")
+        sources = ds.list_sources()
+        if sources:
+            names = ", ".join(f"{s['name']} ({s['row_count']} rows)" for s in sources)
+            ctx_parts.append(f"Custom data sources registered: {names}")
+        else:
+            ctx_parts.append("No custom data sources registered yet.")
         result["context_text"] = " | ".join(ctx_parts)
         return result
     

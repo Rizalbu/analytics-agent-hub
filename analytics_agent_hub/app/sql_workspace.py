@@ -13,11 +13,11 @@ import time
 import sqlglot
 from sqlglot import exp
 
-from . import db
+from . import datasources, db
 
 ALLOWED_SCHEMAS = {
     "main_marts", "main_staging", "main_intermediate", "main_seeds",
-    "raw", "snapshots", "information_schema", "main",
+    "raw", "snapshots", "information_schema", "main", "custom",
 }
 # functions that can read local files (read_only does NOT block these)
 _FORBIDDEN_FUNC = re.compile(
@@ -58,10 +58,33 @@ def _cell(v):
         return v
     return str(v)
 
+def _schemas_used(q: str) -> set[str]:
+    expr = sqlglot.parse_one(q, read="duckdb")
+    return {(t.db or "").lower() for t in expr.find_all(exp.Table) if t.db}
+
+
+def _conn_for(q: str):
+    """Custom sources live in a separate DuckDB file (sources.duckdb), not
+    attached into the main warehouse connection - see datasources.py for why
+    (avoids read-only/read-write lock conflicts with add_source()'s writer).
+    So a query touches either the warehouse or custom sources, never both.
+    """
+    import duckdb as _duckdb
+
+    schemas = _schemas_used(q)
+    if "custom" in schemas:
+        if schemas - {"custom"}:
+            raise SqlError("Joining a custom source with warehouse tables isn't supported yet — query one or the other.")
+        if not datasources.SOURCES_DB_PATH.exists():
+            raise SqlError("No custom data sources registered yet.")
+        return _duckdb.connect(str(datasources.SOURCES_DB_PATH), read_only=True), True
+    return db._conn(), False
+
+
 def run(query: str) -> dict:
     q = validate(query)
     wrapped = f"SELECT * FROM ({q}) AS _sub LIMIT {ROW_CAP}"
-    con = db._conn()
+    con, is_temp = _conn_for(q)
     timer = threading.Timer(TIMEOUT_S, con.interrupt)
     t0 = time.perf_counter()
     timer.start()
@@ -73,6 +96,8 @@ def run(query: str) -> dict:
         raise SqlError(f"Execution error: {str(e)[:300]}")
     finally:
         timer.cancel()
+        if is_temp:
+            con.close()
     rows = [[_cell(v) for v in r] for r in data]
     return {"columns": cols, "rows": rows, "rowcount": len(rows),
             "ms": round((time.perf_counter() - t0) * 1000, 1),
@@ -89,7 +114,10 @@ def schema() -> list[dict]:
     for r in rows:
         out.setdefault((r["table_schema"], r["table_name"]), []).append(
             {"name": r["column_name"], "type": r["data_type"]})
-    return [{"schema": k[0], "table": k[1], "columns": v} for k, v in out.items()]
+    result = [{"schema": k[0], "table": k[1], "columns": v} for k, v in out.items()]
+    for src in datasources.list_sources():
+        result.append({"schema": "custom", "table": src["table"], "columns": src["columns"]})
+    return result
 
 
 def preview(schema_name: str, table: str, limit: int = 50) -> dict:
@@ -120,8 +148,15 @@ def stats() -> dict:
         schemas[s]["tables"] += 1
         schemas[s]["cols"] += r[2]
         total_cols += r[2]
+    custom_sources = datasources.list_sources()
+    if custom_sources:
+        schemas["custom"] = {
+            "tables": len(custom_sources),
+            "cols": sum(len(s["columns"]) for s in custom_sources),
+        }
+        total_cols += schemas["custom"]["cols"]
     return {
-        "total_tables": len(table_counts),
+        "total_tables": len(table_counts) + len(custom_sources),
         "total_schemas": len(schemas),
         "total_columns": total_cols,
         "schemas": [{"name": k, **v} for k, v in schemas.items()],

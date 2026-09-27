@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 
-from . import agents, analyst, auth, coordinator, db, funnel_detail, insights, llm, queries, quality, sql_workspace, tenancy
+from . import agents, analyst, auth, coordinator, datasources, db, funnel_detail, insights, llm, queries, quality, sql_workspace, tenancy
 from .config import settings
 from .llm import polish_stream
 from .rate_limit import limiter
@@ -308,6 +308,34 @@ def sql_stats():
 @app.post("/api/sql/format")
 def sql_format(body: SqlBody):
     return {"formatted": sql_workspace.format_sql(body.query)}
+
+
+# ---- Data Sources (real, replaces the fictional connector catalog) --------
+
+class DataSourceBody(BaseModel):
+    name: str
+    path: str  # local CSV path, readable from this machine
+
+
+@app.get("/api/datasources")
+def api_list_datasources():
+    return {"sources": datasources.list_sources()}
+
+
+@app.post("/api/datasources")
+def api_add_datasource(body: DataSourceBody, request: Request):
+    try:
+        rec = datasources.add_source(body.name, body.path, added_by=request.state.username)
+        return {"ok": True, "source": rec}
+    except (FileNotFoundError, ValueError) as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@app.delete("/api/datasources/{source_id}")
+def api_remove_datasource(source_id: str):
+    if not datasources.remove_source(source_id):
+        return JSONResponse({"error": "source not found"}, status_code=404)
+    return {"ok": True}
 
 
 # ---- Agent Actions ------------------------------------------------------

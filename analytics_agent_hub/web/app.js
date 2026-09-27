@@ -1939,59 +1939,76 @@ PAGES.sql = async (c) => {
 
 PAGES.connectors = async (c) => {
   c.innerHTML = '';
-  // hero
   const hero = card(); hero.classList.add('hero-card');
   hero.innerHTML = `<div class="hero-mesh"></div>
-    <div style="font-size:var(--fs-xl);font-weight:700;letter-spacing:-.02em">Connect data from anywhere</div>
+    <div style="font-size:var(--fs-xl);font-weight:700;letter-spacing:-.02em">Data Sources</div>
     <div style="color:var(--text-dim);margin-top:6px;max-width:680px;line-height:1.6">
-      The hub speaks to databases, cloud warehouses, data lakes, spreadsheets, and REST APIs through one
-      governed semantic layer. The <b>AI Analyst queries across every connected source</b> · so a single
-      question can join product data, billing, and a spreadsheet without you writing the SQL.</div>`;
+      Two kinds here, both real: the <b>warehouse</b> (always on) and <b>Sheet Sync</b> (see its own page)
+      are built in. Below, register your own local CSV — it's loaded into DuckDB and immediately
+      queryable from <a href="#" onclick="go('sql');return false">SQL Workspace</a> as
+      <code>custom.&lt;table&gt;</code>, and the Data/Analytics Engineer agents mention it in their
+      real answers. Nothing here is a mockup: an empty list below means no CSV has been registered yet.</div>`;
   c.append(hero);
 
   let live = { warehouse: '—', sheets: '—' };
-  try { const q = await api('/api/quality'); live.warehouse = (q.freshness || []).reduce((a, b) => a + (b.rows || 0), 0); } catch {}
+  try { const q = await api('/api/quality'); live.warehouse = q.summary?.models_built ?? '—'; } catch {}
   try { const s = await api('/api/sheets'); if (s.available) live.sheets = s.sheets.length; } catch {}
 
-  const CONNECTORS = [
-    { name: 'DuckDB / Parquet', kind: 'Analytical warehouse', logo: 'DB', c: '#fbbf24', status: 'connected', desc: `Active warehouse powering every page. ${fmtInt(live.warehouse)} rows across marts.`, foot: 'live · read-only' },
-    { name: 'Google Sheets', kind: 'Spreadsheet', logo: 'GS', c: '#34d399', status: 'connected', desc: `Governed sync with drift quarantine. ${live.sheets} studio sheets tracked.`, foot: 'live · see Sheet Sync' },
-    { name: 'PostgreSQL', kind: 'OLTP database', logo: 'PG', c: '#38bdf8', status: 'available', desc: 'Production app database. Reads via read replica with row-level scoping.', foot: 'connector ready' },
-    { name: 'BigQuery', kind: 'Cloud warehouse', logo: 'BQ', c: '#6d7dff', status: 'available', desc: 'Same dbt models run here; partition + cluster aware, cost-guarded.', foot: 'connector ready' },
-    { name: 'Snowflake', kind: 'Cloud warehouse', logo: 'SF', c: '#38bdf8', status: 'available', desc: 'Warehouse-of-record option; the semantic layer compiles to Snowflake SQL.', foot: 'connector ready' },
-    { name: 'Amazon S3 / Data Lake', kind: 'Object storage', logo: 'S3', c: '#a78bfa', status: 'available', desc: 'Raw event lake (JSON/Parquet). Queried directly via DuckDB httpfs.', foot: 'connector ready' },
-    { name: 'Redshift', kind: 'Cloud warehouse', logo: 'RS', c: '#f472b6', status: 'available', desc: 'Legacy warehouse bridge for historical marts.', foot: 'connector ready' },
-    { name: 'MySQL', kind: 'OLTP database', logo: 'MY', c: '#fbbf24', status: 'available', desc: 'Secondary operational store; CDC or batch extract.', foot: 'connector ready' },
-    { name: 'Excel / CSV upload', kind: 'Flat files', logo: 'XL', c: '#34d399', status: 'available', desc: 'Drag-drop ad-hoc files; validated against a contract before load.', foot: 'connector ready' },
-    { name: 'REST / Webhook API', kind: 'API source', logo: 'API', c: '#6d7dff', status: 'available', desc: 'Pull from any JSON API on a schedule, or receive webhooks.', foot: 'connector ready' },
-    { name: 'Stripe', kind: 'Billing / SaaS', logo: 'ST', c: '#a78bfa', status: 'beta', desc: 'Subscriptions, invoices & MRR · joined to product data by customer.', foot: 'beta' },
-    { name: 'Kafka / Streams', kind: 'Event stream', logo: 'KF', c: '#fb7185', status: 'beta', desc: 'Real-time event ingestion into the lake for near-live metrics.', foot: 'beta' },
-  ];
+  let sources = [];
+  try { sources = (await api('/api/datasources')).sources || []; } catch {}
 
   const kpis = el('div', 'grid cols-4'); kpis.style.marginTop = 'var(--s4)';
-  const connected = CONNECTORS.filter(x => x.status === 'connected').length;
-  [['Sources Connected', connected, 'live & querying'],
-   ['Connectors Available', CONNECTORS.length, 'DB · warehouse · lake · API'],
-   ['Unified Query Layer', 'dbt', 'one semantic model'],
-   ['AI Reach', 'All', 'analyst spans every source']]
+  [['Warehouse Models', live.warehouse, 'built by dbt · read-only'],
+   ['Sheets Tracked', live.sheets, 'governed sync'],
+   ['Custom Sources', sources.length, 'CSV, queryable now'],
+   ['Rows (custom)', fmtInt(sources.reduce((a, s) => a + (s.row_count || 0), 0)), 'across custom sources']]
     .forEach(([l, val, sub]) => { const k = card(); k.classList.add('kpi'); k.innerHTML = `<div class="kpi-label">${l}</div><div class="kpi-value tnum" style="font-size:22px">${val}</div><div style="color:var(--text-faint);font-size:11px">${sub}</div>`; kpis.append(k); });
   c.append(kpis);
 
+  const formCard = card(); formCard.style.marginTop = 'var(--s4)';
+  formCard.innerHTML = `<div style="font-weight:600;margin-bottom:10px">Register a CSV</div>
+    <form id="dsForm" style="display:flex;gap:8px;flex-wrap:wrap">
+      <input id="dsName" placeholder="Source name" style="flex:1;min-width:160px" required>
+      <input id="dsPath" placeholder="Local path, e.g. /home/you/data.csv" style="flex:2;min-width:240px" required>
+      <button class="btn primary" type="submit">Add</button>
+    </form>
+    <div id="dsErr" style="color:var(--danger,#f87171);font-size:12px;margin-top:6px;display:none"></div>`;
+  c.append(formCard);
+  formCard.querySelector('#dsForm').onsubmit = async e => {
+    e.preventDefault();
+    const name = formCard.querySelector('#dsName').value.trim();
+    const path = formCard.querySelector('#dsPath').value.trim();
+    const errEl = formCard.querySelector('#dsErr');
+    errEl.style.display = 'none';
+    try {
+      const r = await fetch('/api/datasources', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, path }) });
+      const body = await r.json();
+      if (!r.ok || body.ok === false) throw new Error(body.error || 'failed');
+      go('connectors'); // reload the page to show the new source
+    } catch (err) {
+      errEl.textContent = err.message || 'Could not add source — check the path exists on this machine.';
+      errEl.style.display = '';
+    }
+  };
+
   const grid = el('div', 'grid cols-3'); grid.style.marginTop = 'var(--s4)';
-  CONNECTORS.forEach(cn => {
+  if (sources.length === 0) {
+    grid.innerHTML = `<div style="color:var(--text-faint);font-size:13px">No custom sources registered yet.</div>`;
+  }
+  sources.forEach(s => {
     const card_ = card(); card_.classList.add('conn');
-    const statusLabel = cn.status === 'connected' ? '<span class="live-dot"></span> Connected' : (cn.status === 'beta' ? 'Beta' : 'Available');
     card_.innerHTML = `
       <div class="conn-head">
-        <div class="conn-logo" style="color:${cn.c}">${cn.logo}</div>
-        <div><div class="conn-name">${cn.name}</div><div class="conn-kind">${cn.kind}</div></div>
+        <div class="conn-logo" style="color:#34d399">CSV</div>
+        <div><div class="conn-name">${s.name}</div><div class="conn-kind">${s.columns.length} columns · ${fmtInt(s.row_count)} rows</div></div>
       </div>
-      <div class="conn-desc">${cn.desc}</div>
-      <div class="conn-foot"><span class="conn-status ${cn.status}">${statusLabel}</span><span>${cn.foot}</span></div>`;
-    card_.onclick = () => {
-      if (cn.status === 'connected' && cn.name.includes('Sheets')) go('sheets');
-      else if (cn.status === 'connected') go('quality');
-      else toast(`${cn.name} connector · configure with a connection string in deployment.`);
+      <div class="conn-desc">custom.${s.table}<br><span style="color:var(--text-faint);font-size:11px">${s.path}</span></div>
+      <div class="conn-foot"><span class="conn-status connected"><span class="live-dot"></span> Queryable</span>
+        <button class="btn ghost" style="padding:2px 8px" data-id="${s.id}">Remove</button></div>`;
+    card_.querySelector('button').onclick = async e => {
+      e.stopPropagation();
+      await fetch(`/api/datasources/${s.id}`, { method: 'DELETE' });
+      go('connectors');
     };
     grid.append(card_);
   });
