@@ -2278,6 +2278,71 @@ function agentSkeletonCard() {
   return s;
 }
 
+async function renderEngineeringLoop(c) {
+  const box = card(); box.style.marginTop = 'var(--s4)';
+  box.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <div style="font-weight:650;font-size:14px">🛠️ Autonomous Engineering Loop</div>
+      <span class="chip" style="font-size:10px;padding:2px 8px;pointer-events:none">Owners only</span>
+    </div>
+    <div class="hint" style="margin-bottom:10px;max-width:720px;line-height:1.6">
+      Describe a feature in plain language. An LLM writes the code, the full test suite has to pass
+      before anything is kept (a broken attempt is discarded automatically, never applied), and a
+      passing change is committed to this app's own git history by itself, no one reviews the diff first.
+      New endpoints appear under <code>/api/agent_features/…</code> after you restart the server.
+      Needs an <a href="#" onclick="$('#aiSettings').click();return false">engineering-loop model connected</a> first.
+    </div>
+    <div id="engFeaturesList" style="margin-bottom:12px"></div>
+    <form id="engForm" style="display:flex;flex-direction:column;gap:8px">
+      <textarea class="input" id="engInstruction" rows="2" placeholder="e.g. Add an endpoint that lists studios below their revenue target this month" required></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input class="input" id="engFilename" placeholder="filename, e.g. underperforming_studios.py" style="flex:1;min-width:220px" required>
+        <button class="btn primary" type="submit" id="engSubmit"><svg><use href="#i-check"/></svg> Build it</button>
+      </div>
+    </form>
+    <div id="engResult" style="margin-top:10px;display:none"></div>`;
+  c.append(box);
+
+  try {
+    const health = await api('/api/health');
+    const list = box.querySelector('#engFeaturesList');
+    const mounted = health.agent_features_mounted || [];
+    list.innerHTML = mounted.length
+      ? `<div class="hint">Already built: ${mounted.map(m => `<code>${m}</code>`).join(', ')}</div>`
+      : `<div class="hint">Nothing built yet. Try the form below.</div>`;
+  } catch { /* health check is best-effort here */ }
+
+  box.querySelector('#engForm').onsubmit = async e => {
+    e.preventDefault();
+    const instruction = box.querySelector('#engInstruction').value.trim();
+    const filename = box.querySelector('#engFilename').value.trim();
+    const btn = box.querySelector('#engSubmit');
+    const resultEl = box.querySelector('#engResult');
+    btn.disabled = true; btn.innerHTML = 'Writing, testing…';
+    resultEl.style.display = 'none';
+    try {
+      const r = await fetch('/api/agents/engineer', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ instruction, filename }),
+      });
+      const data = await r.json();
+      resultEl.style.display = '';
+      if (r.status === 403) {
+        resultEl.innerHTML = `<div class="status-line err"><span class="status-dot"></span>Owner role required. Ask whoever set this app up, or run <code>bin/create_owner.py</code> locally.</div>`;
+      } else if (data.ok) {
+        resultEl.innerHTML = `<div class="status-line ok"><span class="status-dot"></span>Applied and committed (${data.commit}). <b>Restart the server</b> to activate <code>/api/agent_features/...</code>.</div>`;
+        box.querySelector('#engInstruction').value = ''; box.querySelector('#engFilename').value = '';
+      } else {
+        resultEl.innerHTML = `<div class="status-line err"><span class="status-dot"></span>${(data.error || 'Failed').replace(/</g, '&lt;')}</div>
+          ${data.test_output ? `<pre style="max-height:160px;overflow:auto;font-size:11px;margin-top:6px;padding:8px;background:var(--surface-2);border-radius:6px">${data.test_output.slice(-800).replace(/</g, '&lt;')}</pre>` : ''}`;
+      }
+    } catch {
+      resultEl.style.display = ''; resultEl.innerHTML = `<div class="status-line err"><span class="status-dot"></span>Request failed.</div>`;
+    }
+    btn.disabled = false; btn.innerHTML = '<svg><use href="#i-check"/></svg> Build it';
+  };
+}
+
 PAGES.agents = async (c) => {
   c.innerHTML = '';
 
@@ -2313,6 +2378,8 @@ PAGES.agents = async (c) => {
    ['Avg workload', s.avg_workload + '%', 'across the team'], ['Deliverables', s.deliverables, 'produced']]
     .forEach(([l, val, sub]) => { const t = card(); t.classList.add('kpi', 'reveal'); t.innerHTML = `<div class="kpi-label">${l}</div><div class="kpi-value tnum" style="font-size:22px">${val}</div><div style="color:var(--text-faint);font-size:11px">${sub}</div>`; kg.append(t); });
   c.append(kg);
+
+  await renderEngineeringLoop(c);
 
   // category filter
   const cats = ['All', ...d.categories];
@@ -2873,24 +2940,53 @@ function wireChrome() {
 }
 
 // ---------- AI settings modal ----------
-const PROVIDER_HINT = {
-  deepseek: 'DeepSeek · OpenAI-compatible. Default model: deepseek-chat',
-  anthropic: 'Claude (Anthropic). Default model: claude-opus-4-8 · also claude-haiku-4-5, claude-sonnet-4-6',
-  openai: 'Any OpenAI-compatible endpoint (OpenAI, OpenRouter, Groq, local Ollama). Default: gpt-4o-mini',
+// Friendly label + one-line hint per provider, shown under the dropdown.
+// "key from" names each provider's own site in plain text (not a link) so
+// someone unfamiliar with these providers knows where to go get a key.
+const PROVIDER_INFO = {
+  anthropic:  { label: 'Claude (Anthropic)',        hint: 'key from console.anthropic.com' },
+  openai:     { label: 'OpenAI (GPT)',               hint: 'key from platform.openai.com' },
+  deepseek:   { label: 'DeepSeek',                   hint: 'key from platform.deepseek.com. Cheap, good default.' },
+  kimi:       { label: 'Kimi (Moonshot AI)',         hint: 'key from platform.moonshot.ai' },
+  qwen:       { label: 'Qwen (Alibaba Cloud)',       hint: 'key from dashscope.console.aliyun.com' },
+  groq:       { label: 'Groq',                       hint: 'key from console.groq.com. Very fast responses.' },
+  openrouter: { label: 'OpenRouter',                 hint: 'key from openrouter.ai. One key, many models.' },
+  together:   { label: 'Together AI',                hint: 'key from api.together.ai' },
+  mistral:    { label: 'Mistral AI',                 hint: 'key from console.mistral.ai' },
+  xai:        { label: 'Grok (xAI)',                 hint: 'key from console.x.ai' },
+  fireworks:  { label: 'Fireworks AI',                hint: 'key from fireworks.ai' },
+  perplexity: { label: 'Perplexity',                  hint: 'key from perplexity.ai/settings/api' },
+  gemini:     { label: 'Gemini (Google)',             hint: 'key from aistudio.google.com' },
+  ollama:     { label: 'Ollama (runs on your own machine)', hint: 'free, no key needed, but must be running locally' },
 };
-let aiProvider = 'deepseek';
+const PROVIDER_ORDER = ['anthropic', 'openai', 'deepseek', 'kimi', 'qwen', 'groq', 'openrouter',
+  'together', 'mistral', 'xai', 'fireworks', 'perplexity', 'gemini', 'ollama'];
+
+function _fillProviderSelect(sel, hintEl) {
+  sel.innerHTML = PROVIDER_ORDER.map(id => `<option value="${id}">${PROVIDER_INFO[id].label}</option>`).join('');
+  const paint = () => { hintEl.textContent = PROVIDER_INFO[sel.value].hint; };
+  sel.onchange = paint;
+  paint();
+}
+
 function initSettings() {
+  _fillProviderSelect($('#aiProvider'), $('#aiProviderHint'));
+  $('#aiProvider').value = 'deepseek'; $('#aiProviderHint').textContent = PROVIDER_INFO.deepseek.hint;
+  _fillProviderSelect($('#aiProviderEng'), $('#aiProviderHintEng'));
+
   $('#aiSettings').onclick = openModal;
   $('#aiModalClose').onclick = closeAiModal;
-  $$('#aiProvider button').forEach(b => b.onclick = () => {
-    aiProvider = b.dataset.prov;
-    $$('#aiProvider button').forEach(x => x.classList.toggle('on', x === b));
-    $('#aiProviderHint').textContent = PROVIDER_HINT[aiProvider];
-  });
-  $('#aiSave').onclick = saveSettings;
+  $('#aiSave').onclick = () => saveSettings(false);
+  $('#aiSaveEng').onclick = () => saveSettings(true);
   $('#aiDisconnect').onclick = async () => {
     await fetch('/api/settings/llm/clear', { method: 'POST' });
-    reflectLLM({ enabled: false }); paintAiStatus(); toast('Switched to built-in engine');
+    const data = await (await fetch('/api/settings/llm')).json();
+    reflectLLM(data); paintAiStatus(); toast('Switched to built-in engine');
+  };
+  $('#aiDisconnectEng').onclick = async () => {
+    await fetch('/api/settings/llm/engineer/clear', { method: 'POST' });
+    const data = await (await fetch('/api/settings/llm')).json();
+    reflectLLM(data); paintAiStatus(); toast('Engineering loop will reuse the chat model');
   };
 }
 function openModal() { $('#scrim').classList.add('open'); $('#aiModal').classList.add('open'); paintAiStatus(); }
@@ -2898,23 +2994,41 @@ function closeAiModal() { $('#scrim').classList.remove('open'); $('#aiModal').cl
 function paintAiStatus() {
   const l = $('#aiStatusLine'), t = $('#aiStatusText');
   if (state.llm && state.llm.enabled) {
-    l.className = 'status-line ok'; t.textContent = `Connected: ${state.llm.provider} · ${state.llm.model}`;
+    l.className = 'status-line ok'; t.textContent = `Connected: ${PROVIDER_INFO[state.llm.provider]?.label || state.llm.provider} · ${state.llm.model}`;
   } else {
     l.className = 'status-line off'; t.textContent = 'Using built-in deterministic engine (no key needed)';
   }
+  const le = $('#aiStatusLineEng'), te = $('#aiStatusTextEng');
+  if (state.llm && state.llm.engineer_override) {
+    le.className = 'status-line ok'; te.textContent = `Connected: ${PROVIDER_INFO[state.llm.engineer_provider]?.label || state.llm.engineer_provider} · ${state.llm.engineer_model}`;
+  } else {
+    le.className = 'status-line off'; te.textContent = 'Using the chat model above';
+  }
 }
-async function saveSettings() {
-  const key = $('#aiKey').value.trim();
+async function saveSettings(forEngineer) {
+  const suffix = forEngineer ? 'Eng' : '';
+  const key = $('#aiKey' + suffix).value.trim();
   if (!key) { toast('Enter an API key first'); return; }
-  const btn = $('#aiSave'); btn.disabled = true; btn.innerHTML = 'Testing…';
+  const btn = $('#aiSave' + suffix); btn.disabled = true; btn.innerHTML = 'Testing…';
+  const url = forEngineer ? '/api/settings/llm/engineer' : '/api/settings/llm';
   try {
-    const res = await fetch('/api/settings/llm', {
+    const res = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider: aiProvider, api_key: key, model: $('#aiModel').value.trim() || null, test: true }),
+      body: JSON.stringify({
+        provider: $('#aiProvider' + suffix).value,
+        api_key: key,
+        model: $('#aiModel' + suffix).value.trim() || null,
+        test: true,
+      }),
     });
     const data = await res.json();
-    if (!res.ok || !data.ok) { $('#aiStatusLine').className = 'status-line err'; $('#aiStatusText').textContent = data.error || 'Connection failed'; }
-    else { reflectLLM(data); paintAiStatus(); toast(`Connected to ${data.provider}`); $('#aiKey').value = ''; }
+    const statusLine = $('#aiStatusLine' + suffix), statusText = $('#aiStatusText' + suffix);
+    if (!res.ok || !data.ok) { statusLine.className = 'status-line err'; statusText.textContent = data.error || 'Connection failed'; }
+    else {
+      reflectLLM(data); paintAiStatus();
+      toast(`Connected to ${PROVIDER_INFO[forEngineer ? data.engineer_provider : data.provider]?.label || 'provider'}`);
+      $('#aiKey' + suffix).value = '';
+    }
   } catch { toast('Connection failed'); }
   btn.disabled = false; btn.innerHTML = '<svg><use href="#i-check"/></svg> Test & connect';
 }

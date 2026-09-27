@@ -150,36 +150,62 @@
     <div class="modal-head">
       <div class="avatar" style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center"><svg style="width:17px;height:17px;color:#fff"><use href="#i-ai"/></svg></div>
       <div>
-        <div style="font-weight:650">Upgrade the AI Analyst</div>
-        <div class="page-sub">Plug in a real LLM · or keep the built-in engine</div>
+        <div style="font-weight:650">Connect an AI model</div>
+        <div class="page-sub">Plug in a real LLM, or keep the built-in engine (works with no key at all)</div>
       </div>
       <button class="icon-btn" id="aiModalClose" aria-label="Close"><svg><use href="#i-close"/></svg></button>
     </div>
     <div class="modal-body">
+
+      <div style="font-weight:650;font-size:13px;margin-bottom:2px">1. Chat model</div>
+      <div class="hint" style="margin-bottom:8px">This is the model that writes the friendly sentences you read in the AI Analyst chat. It never makes up numbers: the real numbers always come from the database first, this model just phrases them nicely.</div>
       <div class="status-line off" id="aiStatusLine"><span class="status-dot"></span><span id="aiStatusText">Using built-in deterministic engine (no key needed)</span></div>
       <div class="field">
         <label>Provider</label>
-        <div class="seg" id="aiProvider">
-          <button data-prov="deepseek" class="on">DeepSeek</button>
-          <button data-prov="anthropic">Claude</button>
-          <button data-prov="openai">OpenAI-compat</button>
-        </div>
-        <span class="hint" id="aiProviderHint">DeepSeek · OpenAI-compatible. Default model: deepseek-chat</span>
+        <select class="input" id="aiProvider"></select>
+        <span class="hint" id="aiProviderHint"></span>
       </div>
       <div class="field">
         <label>API key</label>
-        <input class="input" id="aiKey" type="password" placeholder="sk-…" autocomplete="off">
-        <span class="hint">Stored in this server's memory for the session only · never sent to the browser or committed.</span>
+        <input class="input" id="aiKey" type="password" placeholder="Paste the key you got from that provider's website" autocomplete="off">
+        <span class="hint">Stored in this server's memory for this session only. Never sent to your browser or saved to disk.</span>
       </div>
       <div class="field">
-        <label>Model <span class="hint">(optional · leave blank for the default)</span></label>
+        <label>Model <span class="hint">(optional, leave blank to use the provider's default)</span></label>
         <input class="input" id="aiModel" placeholder="auto">
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn primary" id="aiSave"><svg><use href="#i-check"/></svg> Test & connect</button>
-        <button class="btn" id="aiDisconnect">Use built-in engine</button>
+        <button class="btn" id="aiDisconnect">Use built-in engine instead</button>
       </div>
-      <div class="flow-note" style="margin-top:4px">How it works: the deterministic engine computes the real numbers from SQL, then the LLM only <b>rewrites</b> them into fluent prose · it never invents figures. Switch providers anytime.</div>
+
+      <hr class="account-divider" style="margin:18px 0">
+
+      <div style="font-weight:650;font-size:13px;margin-bottom:2px">2. Engineering loop model (optional, owners only)</div>
+      <div class="hint" style="margin-bottom:8px">A separate model just for the "make my agents build new features" loop
+        (Settings → AI Agents → Engineering). Leave this empty and it reuses the chat model above.
+        Set it to a different provider if you want, for example, Claude to write chat replies while a
+        cheaper or faster model writes the actual feature code, both running at the same time.</div>
+      <div class="status-line off" id="aiStatusLineEng"><span class="status-dot"></span><span id="aiStatusTextEng">Using the chat model above</span></div>
+      <div class="field">
+        <label>Provider</label>
+        <select class="input" id="aiProviderEng"></select>
+        <span class="hint" id="aiProviderHintEng"></span>
+      </div>
+      <div class="field">
+        <label>API key</label>
+        <input class="input" id="aiKeyEng" type="password" placeholder="Can be the same key as above, or a different provider entirely" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Model <span class="hint">(optional)</span></label>
+        <input class="input" id="aiModelEng" placeholder="auto">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn primary" id="aiSaveEng"><svg><use href="#i-check"/></svg> Test & connect</button>
+        <button class="btn" id="aiDisconnectEng">Reuse chat model</button>
+      </div>
+
+      <div class="flow-note" style="margin-top:14px">How it works: the deterministic engine computes the real numbers from SQL first, then whichever model you connect only <b>rewrites</b> them into fluent prose. It never invents figures. Switch providers anytime, nothing else in the app changes.</div>
     </div>
   </div>
 
