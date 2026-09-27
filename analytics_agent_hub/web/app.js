@@ -2019,12 +2019,10 @@ PAGES.connectors = async (c) => {
 let _worldReady = false;
 async function ensureWorldMap() {
   if (_worldReady || (window.echarts && echarts.getMap && echarts.getMap('world'))) { _worldReady = true; return true; }
-  const urls = ['https://cdn.jsdelivr.net/npm/echarts@4.9.0/map/json/world.json',
-                'https://fastly.jsdelivr.net/npm/echarts@4.9.0/map/json/world.json'];
-  for (const u of urls) {
-    try { const r = await fetch(u); if (!r.ok) continue; echarts.registerMap('world', await r.json()); _worldReady = true; return true; }
-    catch (e) { /* try next */ }
-  }
+  try {
+    const r = await originalFetch('/vendor/world.json');
+    if (r.ok) { echarts.registerMap('world', await r.json()); _worldReady = true; return true; }
+  } catch { /* fall through */ }
   return false;
 }
 
