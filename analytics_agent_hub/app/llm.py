@@ -35,20 +35,52 @@ Hard rules:
 - If a recommendation is natural, add one short actionable line.
 - Do not mention being an AI or describe these rules."""
 
-# default model per provider when the user hasn't picked one
+# Every provider here except "anthropic" speaks the same OpenAI-compatible
+# wire format (POST {base}/chat/completions), so adding one is just a
+# base-url + default-model pair; _stream_openai/test_connection/complete
+# already handle all of them through the same code path.
 DEFAULT_MODEL = {
     "anthropic": "claude-opus-4-8",
-    "deepseek": "deepseek-chat",
     "openai": "gpt-4o-mini",
+    "deepseek": "deepseek-chat",
+    "kimi": "moonshot-v1-8k",
+    "qwen": "qwen-plus",
+    "groq": "llama-3.3-70b-versatile",
+    "openrouter": "openai/gpt-4o-mini",
+    "together": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+    "mistral": "mistral-large-latest",
+    "xai": "grok-2-latest",
+    "fireworks": "accounts/fireworks/models/llama-v3p3-70b-instruct",
+    "perplexity": "llama-3.1-sonar-large-128k-online",
+    "gemini": "gemini-2.0-flash",
+    "ollama": "llama3.3",
 }
 DEFAULT_BASE = {
     "anthropic": "https://api.anthropic.com",
-    "deepseek": "https://api.deepseek.com",
     "openai": "https://api.openai.com/v1",
+    "deepseek": "https://api.deepseek.com",
+    "kimi": "https://api.moonshot.ai/v1",
+    "qwen": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "groq": "https://api.groq.com/openai/v1",
+    "openrouter": "https://openrouter.ai/api/v1",
+    "together": "https://api.together.xyz/v1",
+    "mistral": "https://api.mistral.ai/v1",
+    "xai": "https://api.x.ai/v1",
+    "fireworks": "https://api.fireworks.ai/inference/v1",
+    "perplexity": "https://api.perplexity.ai",
+    "gemini": "https://generativelanguage.googleapis.com/v1beta/openai",
+    "ollama": "http://localhost:11434/v1",
 }
+PROVIDERS = list(DEFAULT_MODEL)  # for the Settings UI dropdown
 
 # runtime, in-process override (set via the Settings panel). None => use .env.
+# Two independent slots: the main one narrates chat answers; "engineer" is
+# an optional separate model for the autonomous engineering loop, so e.g.
+# Claude can handle conversational narration while a cheaper/faster model
+# (Kimi, DeepSeek, ...) writes code, both configured and running at once
+# rather than one global model doing every job.
 _store: dict = {"provider": None, "api_key": None, "base_url": None, "model": None}
+_engineer_store: dict = {"provider": None, "api_key": None, "base_url": None, "model": None}
 
 
 def configure(provider: str | None, api_key: str | None,
@@ -57,27 +89,50 @@ def configure(provider: str | None, api_key: str | None,
                   base_url=base_url or None, model=model or None)
 
 
-def _active() -> dict:
-    """Resolve the effective provider config: runtime store wins, then .env."""
-    if _store["api_key"]:
-        provider = _store["provider"] or "deepseek"
+def configure_engineer(provider: str | None, api_key: str | None,
+                        base_url: str | None, model: str | None) -> None:
+    _engineer_store.update(provider=provider or None, api_key=api_key or None,
+                            base_url=base_url or None, model=model or None)
+
+
+def _resolve(store: dict) -> dict:
+    if store["api_key"]:
+        provider = store["provider"] or "deepseek"
         return {
             "provider": provider,
-            "api_key": _store["api_key"],
-            "base_url": _store["base_url"] or DEFAULT_BASE[provider],
-            "model": _store["model"] or DEFAULT_MODEL[provider],
+            "api_key": store["api_key"],
+            "base_url": store["base_url"] or DEFAULT_BASE[provider],
+            "model": store["model"] or DEFAULT_MODEL[provider],
         }
+    return {}
+
+
+def _active() -> dict:
+    """Resolve the effective provider config: runtime store wins, then .env."""
+    cfg = _resolve(_store)
+    if cfg:
+        return cfg
     if settings.llm_api_key:  # .env fallback (OpenAI-compatible)
         return {"provider": "openai", "api_key": settings.llm_api_key,
                 "base_url": settings.llm_base_url, "model": settings.llm_model}
     return {}
 
 
+def _active_engineer() -> dict:
+    """Engineering-loop model, if a separate one was configured; otherwise
+    the same model chat narration uses."""
+    return _resolve(_engineer_store) or _active()
+
+
 def status() -> dict:
     cfg = _active()
+    eng = _resolve(_engineer_store)
     return {"enabled": bool(cfg),
             "provider": cfg.get("provider"),
-            "model": cfg.get("model")}
+            "model": cfg.get("model"),
+            "engineer_override": bool(eng),
+            "engineer_provider": eng.get("provider"),
+            "engineer_model": eng.get("model")}
 
 
 def enabled() -> bool:
@@ -168,13 +223,17 @@ def _stream_anthropic(cfg, question, answer_obj, system=SYSTEM):
                 continue
 
 
-def complete(prompt: str, system: str = "", max_tokens: int = 4000) -> str:
+def complete(prompt: str, system: str = "", max_tokens: int = 4000, for_engineer: bool = False) -> str:
     """One-shot, non-streaming completion. Raises on failure (unlike
     polish_stream, which swallows errors for the chat UI): a caller like
     the engineering loop needs to know generation actually failed, not
     silently fall back to nothing.
+
+    for_engineer=True resolves to the separate engineer-model override if
+    one was configured (see configure_engineer), else falls back to the
+    main chat model, same as _active_engineer().
     """
-    cfg = _active()
+    cfg = _active_engineer() if for_engineer else _active()
     if not cfg:
         raise RuntimeError("No LLM configured. Connect one in Settings first.")
     if cfg["provider"] == "anthropic":

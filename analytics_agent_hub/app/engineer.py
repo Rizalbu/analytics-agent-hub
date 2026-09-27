@@ -90,6 +90,7 @@ def propose_and_apply(instruction: str, filename: str, requested_by: str) -> dic
     code = _extract_code(llm.complete(
         f"Feature instruction: {instruction}\n\nModule filename: {filename}",
         system=SYSTEM_PROMPT,
+        for_engineer=True,
     ))
 
     path.write_text(code)

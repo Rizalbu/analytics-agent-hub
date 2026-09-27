@@ -186,7 +186,7 @@ def meta():
 
 
 class LLMSettings(BaseModel):
-    provider: str | None = None      # anthropic | deepseek | openai
+    provider: str | None = None      # see llm.PROVIDERS for the full list
     api_key: str | None = None
     base_url: str | None = None
     model: str | None = None
@@ -195,7 +195,8 @@ class LLMSettings(BaseModel):
 
 @app.get("/api/settings/llm")
 def get_llm_settings():
-    return llm.status()
+    return {**llm.status(), "providers": llm.PROVIDERS,
+            "default_models": llm.DEFAULT_MODEL, "default_bases": llm.DEFAULT_BASE}
 
 
 @app.post("/api/settings/llm")
@@ -211,6 +212,25 @@ def set_llm_settings(s: LLMSettings):
 @app.post("/api/settings/llm/clear")
 def clear_llm_settings():
     llm.configure(None, None, None, None)
+    return {"ok": True, **llm.status()}
+
+
+@app.post("/api/settings/llm/engineer")
+def set_llm_engineer_settings(s: LLMSettings):
+    """Optional separate model for the autonomous engineering loop, so e.g.
+    Claude narrates chat while a different model (cheaper/faster, or just
+    better at code) writes features. Falls back to the main model if unset."""
+    if s.test and s.api_key:
+        probe = llm.test_connection(s.model_dump())
+        if not probe["ok"]:
+            return JSONResponse({"ok": False, **probe}, status_code=400)
+    llm.configure_engineer(s.provider, s.api_key, s.base_url, s.model)
+    return {"ok": True, **llm.status()}
+
+
+@app.post("/api/settings/llm/engineer/clear")
+def clear_llm_engineer_settings():
+    llm.configure_engineer(None, None, None, None)
     return {"ok": True, **llm.status()}
 
 
