@@ -42,6 +42,34 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Growth Command Hub", version="1.0.0", lifespan=lifespan)
 WEB = Path(__file__).resolve().parents[1] / "web"
 
+
+def _mount_agent_features() -> list[str]:
+    """Auto-discover and mount any APIRouter the engineering loop wrote into
+    app/agent_features/. This is what makes engineer.py's promise to the LLM
+    ("the app will mount it") actually true, rather than just writing a file
+    nothing ever imports. Runs once at import time, not per-request.
+    """
+    import importlib
+    from fastapi import APIRouter
+
+    mounted = []
+    for path in sorted(engineer.FEATURES_DIR.glob("*.py")):
+        if path.name == "__init__.py":
+            continue
+        modname = f"app.agent_features.{path.stem}"
+        try:
+            mod = importlib.import_module(modname)
+            router = getattr(mod, "router", None)
+            if isinstance(router, APIRouter):
+                app.include_router(router)
+                mounted.append(path.stem)
+        except Exception as e:
+            print(f"agent_features/{path.name}: failed to mount ({e})")
+    return mounted
+
+
+_mounted_agent_features = _mount_agent_features()
+
 def _filters(city, channel, studio, month_from, month_to) -> dict:
     return {k: v for k, v in {
         "city": city, "channel": channel, "studio": studio,
@@ -146,7 +174,8 @@ def api_add_org_member(org_id: str, body: OrgMemberBody, request: Request):
 @app.get("/api/health")
 def health():
     return {"status": "ok", "company": settings.company_name,
-            "llm": llm.status(), "db": Path(settings.db_path).name}
+            "llm": llm.status(), "db": Path(settings.db_path).name,
+            "agent_features_mounted": _mounted_agent_features}
 
 
 @app.get("/api/meta")
